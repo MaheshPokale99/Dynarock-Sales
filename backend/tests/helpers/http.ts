@@ -1,59 +1,55 @@
-import type { Hono } from "hono";
-import type { AppEnv } from "../../src/common/http/app-env.js";
+import type { TestStack } from "./test-stack.js";
 
-export interface ApiResponse<T = any> {
-    status: number;
-    body: T;
-    headers: Headers;
-}
+const ORIGIN = "http://localhost:3000";
 
-/** Calls the app in-process and parses the JSON body. */
-export async function call<T = any>(
-    app: Hono<AppEnv>,
-    method: string,
-    path: string,
-    body?: unknown,
-    headers: Record<string, string> = {},
-): Promise<ApiResponse<T>> {
-    const res = await app.request(path, {
-        method,
-        headers: { "content-type": "application/json", ...headers },
-        body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
-    });
-    const text = await res.text();
-    return { status: res.status, body: (text ? JSON.parse(text) : null) as T, headers: res.headers };
-}
+// A tiny browser: keeps the session cookie between requests.
+export class Client {
+    cookie = "";
 
-export interface SseEvent {
-    event: string;
-    data: any;
-}
+    constructor(private readonly stack: TestStack) {}
 
-/** Calls an SSE endpoint and returns every event once the stream ends. */
-export async function callSse(
-    app: Hono<AppEnv>,
-    path: string,
-): Promise<{ status: number; events: SseEvent[]; body?: any }> {
-    const res = await app.request(path, { method: "POST" });
-    const text = await res.text();
-    if (!res.headers.get("content-type")?.includes("text/event-stream")) {
-        return { status: res.status, events: [], body: text ? JSON.parse(text) : null };
-    }
-    const events = text
-        .split("\n\n")
-        .filter(Boolean)
-        .map((block) => {
-            const lines = block.split("\n");
-            const event =
-                lines
-                    .find((l) => l.startsWith("event:"))
-                    ?.slice(6)
-                    .trim() ?? "message";
-            const data = lines
-                .filter((l) => l.startsWith("data:"))
-                .map((l) => l.slice(5).trimStart())
-                .join("\n");
-            return { event, data: JSON.parse(data) };
+    async request(method: string, path: string, body?: unknown) {
+        const res = await this.stack.app.request(`/api/v1${path}`, {
+            method,
+            headers: {
+                origin: ORIGIN,
+                ...(body === undefined ? {} : { "content-type": "application/json" }),
+                ...(this.cookie ? { cookie: this.cookie } : {}),
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
         });
-    return { status: res.status, events };
+        const setCookie = res.headers.get("set-cookie");
+        if (setCookie) {
+            const pair = setCookie.split(";")[0] ?? "";
+            this.cookie = pair.endsWith("=") ? "" : pair;
+        }
+        const type = res.headers.get("content-type") ?? "";
+        if (!type.includes("json")) return { status: res.status, body: null as any, headers: res.headers, raw: res };
+        const text = await res.text();
+        return { status: res.status, body: text ? JSON.parse(text) : null, headers: res.headers, raw: res };
+    }
+
+    get = (path: string) => this.request("GET", path);
+    del = (path: string) => this.request("DELETE", path);
+
+    async upload(filename: string, content: string, type = "text/plain") {
+        const form = new FormData();
+        form.append("file", new File([content], filename, { type }));
+        const res = await this.stack.app.request("/api/v1/files", {
+            method: "POST",
+            headers: { origin: ORIGIN, ...(this.cookie ? { cookie: this.cookie } : {}) },
+            body: form,
+        });
+        return { status: res.status, body: await res.json() };
+    }
+    post = (path: string, body?: unknown) => this.request("POST", path, body ?? {});
+    patch = (path: string, body: unknown) => this.request("PATCH", path, body);
+
+    async login(email: string, password: string) {
+        const res = await this.post("/auth/login", { email, password });
+        if (res.status !== 200) throw new Error(`login failed: ${res.status} ${JSON.stringify(res.body)}`);
+        return res;
+    }
 }
+
+export const tokenFrom = (inviteUrl: string) => new URL(inviteUrl).searchParams.get("token") ?? "";

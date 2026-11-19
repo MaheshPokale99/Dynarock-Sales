@@ -10,3 +10,6 @@ export function timeAgo(iso: string): string {
 
 export const dateTime = (iso: string) =>
     new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+export const fullDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });

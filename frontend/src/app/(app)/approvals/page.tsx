@@ -1,8 +1,5 @@
-import type { Metadata } from "next";
-import { ApprovalsPage } from "@/features/approvals/approvals-page";
-
-export const metadata: Metadata = { title: "Approval queue" };
+import { ComingSoon } from "@/components/common/coming-soon";
 
 export default function Page() {
-    return <ApprovalsPage />;
+    return <ComingSoon />;
 }

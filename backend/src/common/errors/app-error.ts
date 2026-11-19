@@ -12,6 +12,18 @@ export class AppError extends Error {
     }
 }
 
+export class UnauthorizedError extends AppError {
+    constructor(message = "Please sign in to continue") {
+        super(message, 401, "UNAUTHORIZED");
+    }
+}
+
+export class ForbiddenError extends AppError {
+    constructor(message = "You do not have permission to do this") {
+        super(message, 403, "FORBIDDEN");
+    }
+}
+
 export class NotFoundError extends AppError {
     constructor(message = "Resource not found") {
         super(message, 404, "NOT_FOUND");
@@ -45,12 +57,6 @@ export class RateLimitError extends AppError {
 export class UpstreamError extends AppError {
     constructor(message: string) {
         super(message, 502, "UPSTREAM_ERROR");
-    }
-}
-
-export class DeliveryError extends AppError {
-    constructor() {
-        super("The message was approved but could not be sent. Try again in a moment.", 502, "EMAIL_DELIVERY_FAILED");
     }
 }
 

@@ -5,10 +5,7 @@ export type { Logger };
 
 const STDOUT = 1;
 
-/**
- * Structured logger. Console output is pretty in development and JSON otherwise; when LOG_FILE is set the same
- * records are also appended to that file as JSON lines. PII fields are redacted everywhere.
- */
+// pino logger: pretty in dev, JSON otherwise, optional LOG_FILE, PII redacted.
 export function createLogger(config: Pick<AppConfig, "env" | "logLevel" | "logFile">): Logger {
     const quiet = config.env === "test";
     const level = quiet && !config.logFile ? "silent" : config.logLevel;

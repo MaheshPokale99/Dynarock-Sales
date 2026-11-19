@@ -1,8 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardPage } from "@/features/dashboard/dashboard-page";
-
-export const metadata: Metadata = { title: "Conversion intelligence" };
+import { ComingSoon } from "@/components/common/coming-soon";
 
 export default function Page() {
-    return <DashboardPage />;
+    return <ComingSoon />;
 }

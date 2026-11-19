@@ -4,6 +4,5 @@ data
 .env
 tests
 scripts
-src/generated
 *.md
 logs

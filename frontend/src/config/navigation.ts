@@ -1,19 +1,85 @@
-import { LayoutDashboard, Radar, ScrollText, ShieldCheck, type LucideIcon } from "lucide-react";
+import {
+    BookOpen,
+    CalendarClock,
+    ChartLine,
+    FileText,
+    Inbox,
+    Kanban,
+    Settings,
+    Sparkles,
+    Users,
+    UsersRound,
+    type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
     href: string;
     label: string;
     icon: LucideIcon;
+    adminOnly?: boolean;
+    // Shown in the menu but built in a later phase.
+    soon?: string;
 }
 
-export const APP_NAME = "Drop-Off Detective";
-export const APP_TAGLINE = "NIAT admissions";
+export interface NavSection {
+    label: string;
+    items: NavItem[];
+}
 
-export const NAV_ITEMS: readonly NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/leads", label: "Lead Radar", icon: Radar },
-    { href: "/approvals", label: "Approvals", icon: ShieldCheck },
-    { href: "/log", label: "Recovery Log", icon: ScrollText },
+export const APP_NAME = "Dynarock Sales";
+export const APP_TAGLINE = "sales@dynarock.in";
+
+export const NAV_SECTIONS: readonly NavSection[] = [
+    {
+        label: "Sales",
+        items: [
+            {
+                href: "/inbox",
+                label: "Inbox",
+                icon: Inbox,
+            },
+            {
+                href: "/approvals",
+                label: "Approvals",
+                icon: Sparkles,
+                soon: "AI reply drafts waiting for review will show up here.",
+            },
+            {
+                href: "/follow-ups",
+                label: "Follow-ups",
+                icon: CalendarClock,
+                soon: "Scheduled follow-ups and follow-up plans will live here.",
+            },
+            { href: "/contacts", label: "Contacts", icon: UsersRound, soon: "Colleges and the people you email." },
+            { href: "/pipeline", label: "Pipeline", icon: Kanban, soon: "A board of every contact by stage." },
+            { href: "/dashboard", label: "Dashboard", icon: ChartLine, soon: "Growth charts and team numbers." },
+        ],
+    },
+    {
+        label: "Library",
+        items: [
+            { href: "/templates", label: "Templates", icon: FileText, soon: "Saved emails you can reuse." },
+            {
+                href: "/knowledge",
+                label: "Knowledge",
+                icon: BookOpen,
+                soon: "Dynarock product facts the AI is allowed to use.",
+            },
+        ],
+    },
+    {
+        label: "Workspace",
+        items: [
+            { href: "/team", label: "Team", icon: Users, adminOnly: true },
+            { href: "/settings", label: "Settings", icon: Settings },
+        ],
+    },
 ];
 
+export const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+
+export const HOME_PATH = "/inbox";
+
 export const isNavActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+export const navItemFor = (pathname: string) => ALL_NAV_ITEMS.find((item) => isNavActive(pathname, item.href));

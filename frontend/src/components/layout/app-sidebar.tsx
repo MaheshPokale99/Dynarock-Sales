@@ -1,10 +1,10 @@
 "use client";
 
-import { SearchCheck } from "lucide-react";
+import { PenSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/common/theme-toggle";
-import { ResetDemo } from "@/components/layout/reset-demo";
+import { BrandMark } from "@/components/common/brand";
+import { UserMenu } from "@/components/layout/user-menu";
 import {
     Sidebar,
     SidebarContent,
@@ -20,15 +20,17 @@ import {
     SidebarRail,
     useSidebar,
 } from "@/components/ui/sidebar";
-import { APP_NAME, APP_TAGLINE, NAV_ITEMS, isNavActive } from "@/config/navigation";
-import { useHealth, useInterventions } from "@/hooks/use-api";
+import { APP_NAME, APP_TAGLINE, HOME_PATH, NAV_SECTIONS, isNavActive } from "@/config/navigation";
+import { useCompose } from "@/features/compose/compose-provider";
+import { useThreadCounts } from "@/hooks/use-mail";
+import type { User } from "@/lib/api";
 
-export function AppSidebar() {
+export function AppSidebar({ user }: { user: User }) {
     const pathname = usePathname();
     const { isMobile, setOpenMobile } = useSidebar();
-    const { data: pending } = useInterventions("pending_approval");
-    const { data: health } = useHealth();
-    const pendingCount = pending?.length ?? 0;
+    const close = () => isMobile && setOpenMobile(false);
+    const compose = useCompose();
+    const { data: counts } = useThreadCounts();
 
     return (
         <Sidebar collapsible="icon">
@@ -38,64 +40,83 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             size="lg"
                             tooltip={APP_NAME}
-                            render={<Link href="/dashboard" />}
-                            onClick={() => isMobile && setOpenMobile(false)}
+                            render={<Link href={HOME_PATH} />}
+                            onClick={close}
                         >
-                            <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                <SearchCheck className="size-4" aria-hidden />
-                            </span>
+                            <BrandMark />
                             <span className="grid flex-1 text-left leading-tight">
                                 <span className="truncate text-sm font-semibold">{APP_NAME}</span>
                                 <span className="truncate text-xs text-muted-foreground">{APP_TAGLINE}</span>
                             </span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem className="mt-2">
+                        <SidebarMenuButton
+                            tooltip="Compose"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                            onClick={() => {
+                                close();
+                                compose.open();
+                            }}
+                        >
+                            <PenSquare aria-hidden />
+                            <span>Compose</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-                                <SidebarMenuItem key={href}>
-                                    <SidebarMenuButton
-                                        tooltip={label}
-                                        isActive={isNavActive(pathname, href)}
-                                        render={
-                                            <Link
-                                                href={href}
-                                                aria-current={isNavActive(pathname, href) ? "page" : undefined}
-                                            />
-                                        }
-                                        onClick={() => isMobile && setOpenMobile(false)}
-                                    >
-                                        <Icon aria-hidden />
-                                        <span>{label}</span>
-                                    </SidebarMenuButton>
-                                    {href === "/approvals" && pendingCount > 0 && (
-                                        <SidebarMenuBadge aria-label={`${pendingCount} pending`}>
-                                            {pendingCount}
-                                        </SidebarMenuBadge>
-                                    )}
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                {NAV_SECTIONS.map((section) => {
+                    const items = section.items.filter((i) => !i.adminOnly || user.role === "admin");
+                    if (items.length === 0) return null;
+                    return (
+                        <SidebarGroup key={section.label}>
+                            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    {items.map(({ href, label, icon: Icon, soon }) => {
+                                        const active = isNavActive(pathname, href);
+                                        return (
+                                            <SidebarMenuItem key={href}>
+                                                <SidebarMenuButton
+                                                    tooltip={label}
+                                                    isActive={active}
+                                                    render={
+                                                        <Link href={href} aria-current={active ? "page" : undefined} />
+                                                    }
+                                                    onClick={close}
+                                                >
+                                                    <Icon aria-hidden />
+                                                    <span>{label}</span>
+                                                </SidebarMenuButton>
+                                                {href === "/inbox" && (counts?.needs_reply ?? 0) > 0 && (
+                                                    <SidebarMenuBadge
+                                                        aria-label={`${counts?.needs_reply} need a reply`}
+                                                    >
+                                                        {counts?.needs_reply}
+                                                    </SidebarMenuBadge>
+                                                )}
+                                                {soon && (
+                                                    <SidebarMenuBadge className="text-[10px] font-normal text-muted-foreground">
+                                                        Soon
+                                                    </SidebarMenuBadge>
+                                                )}
+                                            </SidebarMenuItem>
+                                        );
+                                    })}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    );
+                })}
             </SidebarContent>
 
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <ThemeToggle />
+                        <UserMenu user={user} />
                     </SidebarMenuItem>
-                    {health?.demoEndpoints === true && (
-                        <SidebarMenuItem>
-                            <ResetDemo />
-                        </SidebarMenuItem>
-                    )}
                 </SidebarMenu>
             </SidebarFooter>
             <SidebarRail />

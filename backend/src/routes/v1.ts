@@ -1,38 +1,29 @@
 import { Hono } from "hono";
-import { NotFoundError, ServiceUnavailableError } from "../common/errors/app-error.js";
 import type { AppEnv } from "../common/http/app-env.js";
 import { MS_PER_MINUTE } from "../common/constants.js";
 import { rateLimit } from "../common/middleware/rate-limit.js";
-import { requireFeature } from "../common/middleware/require-feature.js";
 import type { Container } from "../container.js";
-import { createInterventionsRoutes } from "../modules/interventions/interventions.routes.js";
-import { createInvestigationsRoutes } from "../modules/investigations/investigations.routes.js";
-import { createLeadsRoutes } from "../modules/leads/leads.routes.js";
-import { createMetricsRoutes } from "../modules/metrics/metrics.routes.js";
-import { createResourcesRoutes } from "../modules/resources/resources.routes.js";
+import { createAuthRoutes } from "../modules/auth/auth.routes.js";
+import { createDraftsRoutes } from "../modules/drafts/drafts.js";
+import { createFilesRoutes } from "../modules/files/files.routes.js";
+import { createMailRoutes } from "../modules/mail/mail.routes.js";
+import { createMailboxRoutes } from "../modules/mailbox/mailbox.routes.js";
 import { createSystemRoutes } from "../modules/system/system.routes.js";
+import { createUsersRoutes } from "../modules/users/users.routes.js";
 
-/** All versioned API routes, mounted under /api/v1. */
 export function createV1Routes({ config, controllers }: Container) {
-    const geminiRequired = requireFeature(
-        config.gemini.enabled,
-        () => new ServiceUnavailableError("Investigation is not available right now."),
-    );
-    const demoGuard = requireFeature(config.demo.endpoints, () => new NotFoundError("Not found"));
-    const investigateLimit = rateLimit({
+    const authLimit = rateLimit({
         windowMs: MS_PER_MINUTE,
-        max: config.rateLimit.investigatePerMinute,
+        max: config.rateLimit.authPerMinute,
         trustProxy: config.rateLimit.trustProxy,
     });
 
     return new Hono<AppEnv>()
-        .route("/leads", createLeadsRoutes(controllers.leads))
-        .route(
-            "/leads",
-            createInvestigationsRoutes(controllers.investigations, { geminiRequired, rateLimit: investigateLimit }),
-        )
-        .route("/interventions", createInterventionsRoutes(controllers.interventions, controllers.outcomes))
-        .route("/metrics", createMetricsRoutes(controllers.metrics))
-        .route("/resources", createResourcesRoutes(controllers.resources))
-        .route("/", createSystemRoutes(controllers.system, demoGuard));
+        .route("/auth", createAuthRoutes(controllers.auth, authLimit))
+        .route("/users", createUsersRoutes(controllers.users))
+        .route("/mailbox", createMailboxRoutes(controllers.mailbox))
+        .route("/drafts", createDraftsRoutes(controllers.drafts))
+        .route("/files", createFilesRoutes(controllers.files))
+        .route("/", createMailRoutes(controllers.mail))
+        .route("/", createSystemRoutes(controllers.system));
 }

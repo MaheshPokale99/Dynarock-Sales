@@ -13,9 +13,4 @@ export class SystemController {
         await this.service.assertReady();
         return c.json({ status: "ready" });
     };
-
-    resetDemoData = async (c: Context<AppEnv>) => {
-        await this.service.resetDemoData();
-        return c.json({ ok: true });
-    };
 }

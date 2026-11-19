@@ -1,54 +1,37 @@
-import { AsyncLocalStorage } from "node:async_hooks";
-import { PrismaPg } from "@prisma/adapter-pg";
-import type { AppConfig } from "../config/env.js";
-import { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import mongoose, { type Connection } from "mongoose";
+import { registerModels, type Models } from "./models.js";
 
-export interface Transactional {
-    transaction<T>(fn: () => Promise<T>): Promise<T>;
-}
+const SERVER_SELECTION_TIMEOUT_MS = 10_000;
 
-const TRANSACTION_MAX_WAIT_MS = 10_000;
-const TRANSACTION_TIMEOUT_MS = 60_000;
+export class Database {
+    private constructor(
+        readonly connection: Connection,
+        readonly models: Models,
+    ) {}
 
-/** Owns the Prisma client; repositories use `client`, which transparently joins an active transaction. */
-export class Database implements Transactional {
-    private readonly scope = new AsyncLocalStorage<Prisma.TransactionClient>();
-
-    private constructor(readonly prisma: PrismaClient) {}
-
-    static create(config: AppConfig["database"]): Database {
-        const adapter = new PrismaPg({
-            connectionString: config.url,
-            max: config.poolMax,
-            ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
+    static create(uri: string): Database {
+        const connection = mongoose.createConnection(uri, {
+            serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
+            autoIndex: false,
         });
-        return new Database(new PrismaClient({ adapter }));
+        return new Database(connection, registerModels(connection));
     }
 
-    get client(): Prisma.TransactionClient {
-        return this.scope.getStore() ?? this.prisma;
-    }
-
-    /** Runs `fn` in one interactive transaction; nested calls join the outer transaction. */
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
-        if (this.scope.getStore()) return fn();
-        return this.prisma.$transaction((tx) => this.scope.run(tx, fn), {
-            maxWait: TRANSACTION_MAX_WAIT_MS,
-            timeout: TRANSACTION_TIMEOUT_MS,
-        });
+    // Connects and builds all indexes (unique, TTL).
+    async connect(): Promise<void> {
+        await this.connection.asPromise();
+        for (const model of Object.values(this.models)) await model.createIndexes();
     }
 
     async ping(): Promise<void> {
-        await this.prisma.$queryRaw`SELECT 1`;
+        const db = this.connection.db;
+        if (!db) throw new Error("Database is not connected");
+        await db.admin().ping();
     }
 
     disconnect(): Promise<void> {
-        return this.prisma.$disconnect();
+        return this.connection.close();
     }
 }
 
-export const isMissingTable = (error: unknown): boolean =>
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
-
-export const isUniqueViolation = (error: unknown): boolean =>
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+export const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;

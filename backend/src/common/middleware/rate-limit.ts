@@ -15,7 +15,7 @@ interface Window {
     resetAt: number;
 }
 
-function clientKey(c: Context<AppEnv>, trustProxy: boolean): string {
+export function clientAddress(c: Context<AppEnv>, trustProxy: boolean): string {
     if (trustProxy) {
         const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
         if (forwarded) return forwarded;
@@ -37,7 +37,7 @@ export function rateLimit({ windowMs, max, trustProxy = false }: RateLimitOption
     }, windowMs).unref();
 
     return createMiddleware<AppEnv>(async (c, next) => {
-        const key = clientKey(c, trustProxy);
+        const key = clientAddress(c, trustProxy);
         const now = Date.now();
 
         let current = windows.get(key);

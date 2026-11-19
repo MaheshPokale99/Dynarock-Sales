@@ -7,9 +7,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: { default: "Admission Drop-Off Detective", template: "%s · Drop-Off Detective" },
-    description:
-        "Find stalled admission leads, see why they went quiet and follow up with counsellor-approved messages.",
+    title: { default: "Dynarock Sales", template: "%s · Dynarock Sales" },
+    description: "The Dynarock sales team's shared inbox, AI follow-ups and growth dashboard.",
+    robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

@@ -1,31 +1,21 @@
+// Zero-install local MongoDB on port 27017; data is kept in backend/data/mongo.
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
-import { migrationSql } from "./migrations.js";
+import { MongoMemoryServer } from "mongodb-memory-server";
 
-const port = Number(process.env.DEV_DB_PORT ?? 5432);
-const dataDir = process.env.DEV_DB_DIR ?? "./data/pglite";
+const dbPath = new URL("../data/mongo", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+mkdirSync(dbPath, { recursive: true });
 
-mkdirSync(dirname(dataDir), { recursive: true });
-const db = await PGlite.create(dataDir);
+const server = await MongoMemoryServer.create({
+    instance: { port: 27017, ip: "127.0.0.1", dbPath, storageEngine: "wiredTiger" },
+});
 
-const { rows } = await db.query<{ exists: boolean }>("SELECT to_regclass('public.leads') IS NOT NULL AS exists");
-if (!rows[0]?.exists) {
-    for (const script of migrationSql()) await db.exec(script);
-    console.log("Applied Prisma migrations to the local database.");
-}
+console.log(`MongoDB running at ${server.getUri()}dynarock_sales`);
+console.log(`Data folder: ${dbPath}`);
+console.log("Press Ctrl+C to stop.");
 
-const server = new PGLiteSocketServer({ db, port, host: "127.0.0.1", maxConnections: 10 });
-await server.start();
-
-console.log(`Local Postgres (PGlite) listening on postgresql://postgres:postgres@localhost:${port}/detective`);
-console.log(`Data directory: ${dataDir}`);
-
-const shutdown = async () => {
-    await server.stop();
-    await db.close();
+const stop = async () => {
+    await server.stop({ doCleanup: false });
     process.exit(0);
 };
-process.on("SIGINT", () => void shutdown());
-process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void stop());
+process.on("SIGTERM", () => void stop());
