@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -195,13 +196,15 @@ export function AiAssist({
                     <ChevronDown className="size-3" aria-hidden />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start" className="min-w-44">
-                    <DropdownMenuLabel>Rewrite the draft</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {REWRITES.map((r) => (
-                        <DropdownMenuItem key={r.action} onClick={() => void rewrite(r.action)}>
-                            {r.label}
-                        </DropdownMenuItem>
-                    ))}
+                    <DropdownMenuGroup>
+                        <DropdownMenuLabel>Rewrite the draft</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {REWRITES.map((r) => (
+                            <DropdownMenuItem key={r.action} onClick={() => void rewrite(r.action)}>
+                                {r.label}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuGroup>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

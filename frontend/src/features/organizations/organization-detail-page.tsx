@@ -28,7 +28,13 @@ export function OrganizationDetailPage() {
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" size="sm" render={<Link href="/organizations" />} className="-ml-2">
+            <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/organizations" />}
+                className="-ml-2"
+            >
                 <ArrowLeft data-icon="inline-start" />
                 Colleges
             </Button>

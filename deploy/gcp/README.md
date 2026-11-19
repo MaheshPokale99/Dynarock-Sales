@@ -16,7 +16,7 @@ Project `dynarock-backend-2026`, region `asia-south1`. It uses the same layout a
 | [domains.sh](domains.sh) | HTTPS load balancer and certificate for `api.sales.dynarock.in` |
 
 ```text
-push to main ─> GitHub Actions: format, lint, typecheck, knip, audit │ tests + build │ gitleaks │ image
+push to main ─> GitHub Actions: format, lint, typecheck, audit │ tests + build │ gitleaks │ image
              ─> all green ─> Cloud Build trigger (this commit) ─> cloudbuild.yaml ─> Cloud Run dynarock-sales-api
 
 api.sales.dynarock.in ─> HTTPS load balancer ─> Cloud Run ─> Cloud NAT (fixed IP) ─> MongoDB Atlas, Gmail, Gemini

@@ -15,6 +15,7 @@ import {
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -100,22 +101,24 @@ export function ScheduleMenu({ onPick, disabled }: { onPick: (sendAt: string) =>
                     <ChevronDown aria-hidden />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start" className="min-w-52">
-                    <DropdownMenuLabel>Schedule send</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onPick(tomorrow.toISOString())}>
-                        <CalendarClock aria-hidden />
-                        {whenLabel(tomorrow.toISOString())}
-                    </DropdownMenuItem>
-                    {monday.toDateString() !== tomorrow.toDateString() && (
-                        <DropdownMenuItem onClick={() => onPick(monday.toISOString())}>
+                    <DropdownMenuGroup>
+                        <DropdownMenuLabel>Schedule send</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onPick(tomorrow.toISOString())}>
                             <CalendarClock aria-hidden />
-                            {whenLabel(monday.toISOString())}
+                            {whenLabel(tomorrow.toISOString())}
                         </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => setCustom(true)}>
-                        <CalendarClock aria-hidden />
-                        Pick date and time…
-                    </DropdownMenuItem>
+                        {monday.toDateString() !== tomorrow.toDateString() && (
+                            <DropdownMenuItem onClick={() => onPick(monday.toISOString())}>
+                                <CalendarClock aria-hidden />
+                                {whenLabel(monday.toISOString())}
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => setCustom(true)}>
+                            <CalendarClock aria-hidden />
+                            Pick date and time…
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
                 </DropdownMenuContent>
             </DropdownMenu>
             <Dialog open={custom} onOpenChange={setCustom}>

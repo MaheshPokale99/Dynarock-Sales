@@ -59,6 +59,8 @@ gcloud iam service-accounts add-iam-policy-binding "$GITHUB_SA" --role roles/iam
     --member "principal://iam.googleapis.com/projects/$NUMBER/locations/global/workloadIdentityPools/$WIF_POOL/subject/repo:$GITHUB_REPO:ref:refs/heads/$DEPLOY_BRANCH" >/dev/null
 gcloud artifacts repositories add-iam-policy-binding "$REPO" --location "$REGION" \
     --member "serviceAccount:$GITHUB_SA" --role roles/artifactregistry.writer >/dev/null
+gcloud storage buckets add-iam-policy-binding "gs://$BUILD_BUCKET" \
+    --member "serviceAccount:$GITHUB_SA" --role roles/storage.objectAdmin >/dev/null
 project_role "$GITHUB_SA" roles/cloudbuild.builds.editor
 project_role "$GITHUB_SA" roles/serviceusage.serviceUsageConsumer
 gcloud iam service-accounts add-iam-policy-binding "$BUILD_SA" \

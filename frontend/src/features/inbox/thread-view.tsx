@@ -102,6 +102,7 @@ export function ThreadView({
                     variant="ghost"
                     size="icon-sm"
                     className="lg:hidden"
+                    nativeButton={false}
                     render={<Link href={backHref} />}
                     aria-label="Back to list"
                 >

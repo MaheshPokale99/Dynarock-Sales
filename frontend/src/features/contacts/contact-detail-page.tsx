@@ -46,7 +46,7 @@ export function ContactDetailPage() {
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" size="sm" render={<Link href="/contacts" />} className="-ml-2">
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/contacts" />} className="-ml-2">
                 <ArrowLeft data-icon="inline-start" />
                 Contacts
             </Button>

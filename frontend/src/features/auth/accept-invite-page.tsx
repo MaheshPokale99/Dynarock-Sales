@@ -50,7 +50,7 @@ export function AcceptInvitePage() {
                             ? errorMessage(invite.error)
                             : "This link is missing its code. Open the full link from your invitation."}
                     </p>
-                    <Button variant="outline" className="w-full" render={<Link href="/login" />}>
+                    <Button variant="outline" className="w-full" nativeButton={false} render={<Link href="/login" />}>
                         Go to sign in
                     </Button>
                 </div>

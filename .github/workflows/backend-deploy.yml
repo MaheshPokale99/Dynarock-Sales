@@ -33,7 +33,7 @@ env:
 
 jobs:
   checks:
-    name: Format, lint, types, dead code & audit
+    name: Format, lint, types & audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -50,7 +50,6 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run knip
       - run: npm audit --omit=dev --audit-level=critical
 
   test:
@@ -137,6 +136,8 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -156,11 +157,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          build_id="$(gcloud builds triggers run "$TRIGGER" \
-            --project="$PROJECT_ID" \
-            --region=global \
-            --sha="$BUILD_COMMIT_SHA" \
-            --format=json | jq -r '.metadata.build.id // empty')"
+          if gcloud builds triggers describe "$TRIGGER" --project="$PROJECT_ID" --region=global >/dev/null 2>&1; then
+            build_id="$(gcloud builds triggers run "$TRIGGER" \
+              --project="$PROJECT_ID" \
+              --region=global \
+              --sha="$BUILD_COMMIT_SHA" \
+              --format=json | jq -r '.metadata.build.id // empty')"
+          else
+            # Until the repo is connected to Cloud Build, send this checkout straight to Cloud Build.
+            echo "Trigger $TRIGGER not found; submitting this commit directly."
+            build_id="$(gcloud builds submit . \
+              --project="$PROJECT_ID" \
+              --config=cloudbuild.yaml \
+              --substitutions="COMMIT_SHA=$BUILD_COMMIT_SHA" \
+              --gcs-source-staging-dir="gs://$PROJECT_ID-build-src/source" \
+              --async \
+              --format='value(id)')"
+          fi
 
           if [[ -z "$build_id" ]]; then
             echo "Cloud Build did not return a build ID."

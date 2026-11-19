@@ -99,6 +99,7 @@ export function SuggestionCard({
                         <Button
                             variant="outline"
                             size="sm"
+                            nativeButton={false}
                             render={<Link href={`/inbox?f=all&t=${suggestion.threadId}`} />}
                         >
                             <ExternalLink data-icon="inline-start" />

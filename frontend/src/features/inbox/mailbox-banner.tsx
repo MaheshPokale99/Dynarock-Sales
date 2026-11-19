@@ -36,7 +36,7 @@ export function MailboxBanner() {
             <AlertDescription>{description}</AlertDescription>
             {isAdmin && mailbox.status !== "not_configured" && (
                 <AlertAction>
-                    <Button size="sm" variant="outline" render={<Link href="/settings" />}>
+                    <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/settings" />}>
                         Open settings
                     </Button>
                 </AlertAction>
