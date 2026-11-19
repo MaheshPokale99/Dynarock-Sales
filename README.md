@@ -16,7 +16,8 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 3 | Contacts and colleges (auto-created and auto-linked from email), stage history, pipeline board | Done |
 | 4 | AI (Gemini): AI Write and Rewrite in Compose, reply labels and summaries, suggested replies in Approvals, Knowledge base | Done |
 | 5 | Automatic follow-ups (plans, AI-written steps, send window, daily limit, pause), schedule send, unsubscribe | Done |
-| 6 | Analytics dashboard | Next |
+| 6 | Analytics dashboard: KPIs vs previous period, activity over time, pipeline, follow-up results, reply labels, AI drafts, team table | Done |
+| 7 | Templates, polish, deployment | Next |
 
 ## Stack
 
@@ -144,6 +145,7 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | GET | `/scheduled-emails?status=&kind=&threadId=` · `/scheduled-emails/counts` | signed in | Scheduled, sent and stopped emails |
 | PATCH / POST | `/scheduled-emails/:id` · `/cancel` · `/send-now` · `/regenerate` | signed in | Edit, cancel, send now, rewrite with AI |
 | GET / POST | `/u/:token` (outside `/api`) | public | Unsubscribe page and one-click unsubscribe |
+| GET | `/analytics/dashboard?days=7\|30\|90` | signed in | Everything the dashboard shows, with the previous period for comparison |
 | GET | `/health` · `/healthz` · `/readyz` | — | Status and probes |
 
 How contacts work: every email sent or received creates the contact if needed and links them to the college with the same email domain (never for gmail.com and other personal providers). Stages move forward on their own, New → Contacted when we email, → Replied when they answer, and never backwards. Unsubscribed, bounced and do-not-contact people can't be emailed.
@@ -163,14 +165,14 @@ backend/src/
   database/                            Mongoose connection and model registry
   common/                              errors, http helpers, logger, middleware, utils
   modules/<name>/                      model, repository, service, controller, routes, schema
-    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  automation/  system/
+    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  automation/  analytics/  system/
   integrations/gmail/                  OAuth, REST client, MIME build/parse
   integrations/gemini/                 Gemini client (JSON output)
   workers/                             Gmail sync and the follow-up sender
 frontend/src/
   app/(auth)/                          login, accept-invite
   app/(app)/                           signed-in pages inside the sidebar shell
-  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge, followups
+  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge, followups, dashboard
   components/ui/                       shadcn components
   hooks/  lib/api/  config/
 ```

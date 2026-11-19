@@ -1,5 +1,14 @@
-import { ComingSoon } from "@/components/common/coming-soon";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/common/page-header";
+import { DashboardPage } from "@/features/dashboard/dashboard-page";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default function Page() {
-    return <ComingSoon />;
+    return (
+        <Suspense fallback={<PageSkeleton />}>
+            <DashboardPage />
+        </Suspense>
+    );
 }

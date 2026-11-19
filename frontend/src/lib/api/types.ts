@@ -409,3 +409,45 @@ export interface KnowledgeEntry {
 }
 
 export type KnowledgeInput = Omit<KnowledgeEntry, "id" | "updatedAt">;
+
+export interface Metric {
+    value: number | null;
+    previous: number | null;
+}
+
+export interface Dashboard {
+    range: { from: string; to: string; days: number; interval: "day" | "week" };
+    kpis: {
+        emailsSent: Metric;
+        replies: Metric;
+        replyRate: Metric;
+        avgClientReplyHours: Metric;
+        avgResponseHours: Metric;
+        demosBooked: Metric;
+        won: Metric;
+        newContacts: Metric;
+        followUpsSent: Metric;
+    };
+    series: { date: string; sent: number; replies: number; followUps: number }[];
+    pipeline: { stage: ContactStage; count: number }[];
+    followUpSteps: { step: number; sent: number; replied: number; replyRate: number | null }[];
+    intents: { intent: Intent; count: number }[];
+    ai: {
+        suggestions: { sentAsIs: number; sentEdited: number; rejected: number; pending: number };
+        calls: number;
+        failedCalls: number;
+        tokens: number;
+    };
+    team: {
+        userId: string;
+        name: string;
+        disabled: boolean;
+        emailsSent: number;
+        followUpsSent: number;
+        conversationsStarted: number;
+        replyRate: number | null;
+        demosBooked: number;
+        won: number;
+        aiRepliesApproved: number;
+    }[];
+}

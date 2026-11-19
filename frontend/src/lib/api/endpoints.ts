@@ -42,6 +42,7 @@ import type {
     Sequence,
     SequenceInput,
     ThreadAutomation,
+    Dashboard,
 } from "./types";
 
 type UserResponse = { user: User };
@@ -173,6 +174,10 @@ export const api = {
         cancel: (id: string) => post<{ ok: true }>(`/scheduled-emails/${id}/cancel`),
         sendNow: (id: string) => post<ScheduledEmail>(`/scheduled-emails/${id}/send-now`),
         regenerate: (id: string) => post<ScheduledEmail & { warnings: string[] }>(`/scheduled-emails/${id}/regenerate`),
+    },
+
+    analytics: {
+        dashboard: (days: 7 | 30 | 90) => request<Dashboard>(`/analytics/dashboard?days=${days}`),
     },
 
     knowledge: {

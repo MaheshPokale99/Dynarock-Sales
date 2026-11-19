@@ -52,7 +52,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
             { href: "/contacts", label: "Contacts", icon: UsersRound },
             { href: "/organizations", label: "Colleges", icon: Building2 },
             { href: "/pipeline", label: "Pipeline", icon: Kanban },
-            { href: "/dashboard", label: "Dashboard", icon: ChartLine, soon: "Growth charts and team numbers." },
+            { href: "/dashboard", label: "Dashboard", icon: ChartLine },
         ],
     },
     {

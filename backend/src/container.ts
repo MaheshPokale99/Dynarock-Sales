@@ -6,6 +6,8 @@ import { createGmailOAuth } from "./integrations/gmail/gmail-oauth.js";
 import type { GmailApiFactory, GmailOAuth } from "./integrations/gmail/gmail.types.js";
 import { createGeminiModel, type AiModel } from "./integrations/gemini/gemini.js";
 import { AiController } from "./modules/ai/ai.http.js";
+import { AnalyticsController } from "./modules/analytics/analytics.http.js";
+import { AnalyticsService } from "./modules/analytics/analytics.service.js";
 import { AutomationController } from "./modules/automation/automation.http.js";
 import { AutomationService } from "./modules/automation/automation.service.js";
 import { AiService } from "./modules/ai/ai.service.js";
@@ -133,6 +135,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
             knowledge: new KnowledgeController(knowledge),
             ai: new AiController(ai),
             automation: new AutomationController(automation),
+            analytics: new AnalyticsController(new AnalyticsService(models, now)),
             system: new SystemController(system),
         },
     };
