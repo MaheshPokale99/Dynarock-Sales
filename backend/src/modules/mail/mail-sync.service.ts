@@ -26,12 +26,18 @@ interface Deps {
     mailbox: MailboxService;
     locks: Locks;
     contacts: Pick<ContactsService, "linkMessage">;
+    onInbound?: (threadId: Types.ObjectId, messageId: Types.ObjectId, mailboxEmail: string) => void;
     logger: Logger;
     lockTtlMs: number;
 }
 
 export class MailSyncService {
     constructor(private readonly deps: Deps) {}
+
+    // Called for each new client email (the AI hooks in here).
+    setInboundHook(hook: NonNullable<Deps["onInbound"]>) {
+        this.deps.onInbound = hook;
+    }
 
     // Pulls everything new from Gmail since the last sync. Safe to call from several servers.
     async syncNow(): Promise<{ added: number } | undefined> {
@@ -115,6 +121,7 @@ export class MailSyncService {
         if (!created && !app) return { thread, message, created };
         await this.recomputeThread(thread._id, mailbox.email, created ? message : null);
         await this.deps.contacts.linkMessage(mailbox.email, thread._id, message, created);
+        if (created && direction === "inbound") this.deps.onInbound?.(thread._id, message._id, mailbox.email);
         const updated = await this.deps.mail.findThread(thread._id.toHexString());
         return { thread: updated ?? thread, message, created };
     }

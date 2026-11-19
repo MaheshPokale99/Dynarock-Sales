@@ -2,6 +2,7 @@
 
 import { Inbox, Paperclip } from "lucide-react";
 import Link from "next/link";
+import { IntentBadge } from "@/components/common/intent-badge";
 import { EmptyState, ErrorState } from "@/components/common/page-header";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -86,8 +87,15 @@ function ThreadRow({
                             <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
                         )}
                     </div>
-                    {senders.length > 0 && (
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">by {senders.join(", ")}</p>
+                    {(senders.length > 0 || (thread.latestIntent && thread.state === "needs_reply")) && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                            {thread.latestIntent && thread.state === "needs_reply" && (
+                                <IntentBadge intent={thread.latestIntent} className="h-4 px-1.5 text-[10px]" />
+                            )}
+                            {senders.length > 0 && (
+                                <p className="truncate text-[11px] text-muted-foreground">by {senders.join(", ")}</p>
+                            )}
+                        </div>
                     )}
                 </div>
             </Link>

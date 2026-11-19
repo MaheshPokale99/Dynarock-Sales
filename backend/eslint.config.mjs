@@ -10,7 +10,8 @@ export default defineConfig(
     {
         languageOptions: {
             globals: globals.node,
-            parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+            // "project" watches files on disk, so the editor stays in sync when files change outside it.
+            parserOptions: { project: ["./tsconfig.json"], tsconfigRootDir: import.meta.dirname },
         },
         rules: {
             eqeqeq: ["error", "always"],

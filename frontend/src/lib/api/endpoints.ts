@@ -27,6 +27,13 @@ import type {
     OrganizationInput,
     OrganizationType,
     Pipeline,
+    AiDraft,
+    KnowledgeEntry,
+    KnowledgeInput,
+    RewriteAction,
+    Suggestion,
+    SuggestionStatus,
+    Tone,
 } from "./types";
 
 type UserResponse = { user: User };
@@ -122,6 +129,28 @@ export const api = {
     },
 
     pipeline: (p: { q?: string; ownerId?: string }) => request<Pipeline>(`/pipeline${qs(p)}`),
+
+    ai: {
+        status: () => request<{ enabled: boolean }>("/ai/status"),
+        compose: (body: { instruction: string; to: string[]; threadId?: string; tone: Tone }) =>
+            post<AiDraft & { subject: string }>("/ai/compose", body),
+        rewrite: (body: { html: string; action: RewriteAction; instruction?: string }) =>
+            post<AiDraft>("/ai/rewrite", body),
+        suggestReply: (threadId: string) => post<Suggestion>(`/threads/${threadId}/ai/suggest-reply`),
+        suggestions: (p: { status?: SuggestionStatus; threadId?: string } = {}) =>
+            request<Suggestion[]>(`/ai/suggestions${qs(p)}`),
+        counts: () => request<{ pending: number }>("/ai/suggestions/counts"),
+        send: (id: string, body: { to: string[]; cc: string[]; bcc: string[]; subject: string; html: string }) =>
+            post<{ threadId: string; messageId: string }>(`/ai/suggestions/${id}/send`, body),
+        reject: (id: string, reason: string) => post<{ ok: true }>(`/ai/suggestions/${id}/reject`, { reason }),
+    },
+
+    knowledge: {
+        list: () => request<KnowledgeEntry[]>("/knowledge"),
+        create: (body: KnowledgeInput) => post<KnowledgeEntry>("/knowledge", body),
+        update: (id: string, body: Partial<KnowledgeInput>) => patch<KnowledgeEntry>(`/knowledge/${id}`, body),
+        remove: (id: string) => request<{ ok: true }>(`/knowledge/${id}`, { method: "DELETE" }),
+    },
 
     organizations: {
         list: (p: { q?: string; type?: OrganizationType } = {}) => request<Organization[]>(`/organizations${qs(p)}`),

@@ -1,4 +1,6 @@
 import type { Connection } from "mongoose";
+import { aiRunSchema, suggestionSchema, type AiRunDoc, type SuggestionDoc } from "../modules/ai/ai.model.js";
+import { knowledgeSchema, type KnowledgeDoc } from "../modules/knowledge/knowledge.model.js";
 import { contactSchema, type ContactDoc } from "../modules/contacts/contact.model.js";
 import { organizationSchema, type OrganizationDoc } from "../modules/organizations/organization.model.js";
 import { activitySchema, type ActivityDoc } from "../modules/activities/activity.model.js";
@@ -22,6 +24,9 @@ export function registerModels(connection: Connection) {
         Lock: connection.model<LockDoc>("Lock", lockSchema, "locks"),
         Contact: connection.model<ContactDoc>("Contact", contactSchema, "contacts"),
         Organization: connection.model<OrganizationDoc>("Organization", organizationSchema, "organizations"),
+        Knowledge: connection.model<KnowledgeDoc>("Knowledge", knowledgeSchema, "knowledge"),
+        Suggestion: connection.model<SuggestionDoc>("Suggestion", suggestionSchema, "ai_suggestions"),
+        AiRun: connection.model<AiRunDoc>("AiRun", aiRunSchema, "ai_runs"),
     };
 }
 

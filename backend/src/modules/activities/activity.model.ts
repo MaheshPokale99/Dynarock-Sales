@@ -22,6 +22,10 @@ export const ACTIVITY_ACTIONS = [
     "contact.stage_changed",
     "organization.created",
     "organization.updated",
+    "ai.reply_suggested",
+    "ai.suggestion_sent",
+    "ai.suggestion_rejected",
+    "contact.unsubscribed",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

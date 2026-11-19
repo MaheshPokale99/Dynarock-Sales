@@ -4,6 +4,10 @@ import { Database } from "./database/database.js";
 import { createGmailApi } from "./integrations/gmail/gmail-client.js";
 import { createGmailOAuth } from "./integrations/gmail/gmail-oauth.js";
 import type { GmailApiFactory, GmailOAuth } from "./integrations/gmail/gmail.types.js";
+import { createGeminiModel, type AiModel } from "./integrations/gemini/gemini.js";
+import { AiController } from "./modules/ai/ai.http.js";
+import { AiService } from "./modules/ai/ai.service.js";
+import { KnowledgeController, KnowledgeService } from "./modules/knowledge/knowledge.js";
 import { ActivitiesRepository } from "./modules/activities/activities.repository.js";
 import { AuthController } from "./modules/auth/auth.controller.js";
 import { AuthService } from "./modules/auth/auth.service.js";
@@ -38,6 +42,7 @@ export interface ContainerOverrides {
     now?: () => Date;
     gmailOAuth?: GmailOAuth;
     gmailApi?: GmailApiFactory;
+    ai?: AiModel;
 }
 
 export type Container = ReturnType<typeof createContainer>;
@@ -60,6 +65,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         organizations: new OrganizationsRepository(models),
     };
 
+    const knowledge = new KnowledgeService(models);
     const contacts = new ContactsService(repositories);
     const organizations = new OrganizationsService({ ...repositories, contactsService: contacts });
     const auth = new AuthService({ ...repositories, config: config.auth, now });
@@ -81,6 +87,15 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
     });
     const files = new FilesService(database.connection);
     const mail = new MailService({ ...repositories, contacts, sync, mailbox, files, logger });
+    const ai = new AiService({
+        ...repositories,
+        model: overrides.ai ?? createGeminiModel(config.gemini),
+        models,
+        knowledge,
+        mailService: mail,
+        logger,
+    });
+    sync.setInboundHook((threadId, messageId, mailboxEmail) => ai.enqueueInbound(threadId, messageId, mailboxEmail));
     const system = new SystemService(database, config);
 
     const cookie = { secure: config.auth.cookieSecure };
@@ -90,7 +105,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         logger,
         database,
         repositories,
-        services: { auth, users, mailbox, sync, mail, files, contacts, organizations },
+        services: { auth, users, mailbox, sync, mail, files, contacts, organizations, knowledge, ai },
         cookie,
         controllers: {
             auth: new AuthController(auth, { ...cookie, trustProxy: config.rateLimit.trustProxy }),
@@ -101,6 +116,8 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
             files: new FilesController(files),
             contacts: new ContactsController(contacts),
             organizations: new OrganizationsController(organizations),
+            knowledge: new KnowledgeController(knowledge),
+            ai: new AiController(ai),
             system: new SystemController(system),
         },
     };

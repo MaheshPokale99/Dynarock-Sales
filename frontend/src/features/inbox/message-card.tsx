@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Sparkles } from "lucide-react";
+import { IntentBadge } from "@/components/common/intent-badge";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { api, type Message } from "@/lib/api";
@@ -77,6 +78,13 @@ export function MessageCard({
                         <p className="text-xs text-muted-foreground">
                             bcc {message.bcc.map((a) => a.email).join(", ")}
                         </p>
+                    )}
+                    {message.classification && message.direction === "inbound" && (
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            <Sparkles className="size-3.5" aria-hidden />
+                            <IntentBadge intent={message.classification.intent} />
+                            <span>{message.classification.summary}</span>
+                        </div>
                     )}
                     <EmailBody html={message.html} />
                     {message.attachments.length > 0 && (

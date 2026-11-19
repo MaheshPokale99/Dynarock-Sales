@@ -70,6 +70,8 @@ export interface Thread {
     startedBy: string | null;
     contactIds: string[];
     organizationId: string | null;
+    latestIntent: Intent | null;
+    aiSummary: string;
 }
 
 export interface ThreadCounts {
@@ -105,6 +107,7 @@ export interface Message {
     sentByUserId: string | null;
     origin: "app_compose" | "app_reply" | "app_forward" | "gmail_external" | "inbound";
     isAutoReply: boolean;
+    classification: Classification | null;
 }
 
 export interface ThreadDetail {
@@ -251,3 +254,71 @@ export interface OrganizationDetail {
 export interface Pipeline {
     stages: { stage: ContactStage; total: number; contacts: Contact[] }[];
 }
+
+export type Intent =
+    | "interested"
+    | "demo_request"
+    | "question"
+    | "pricing"
+    | "objection"
+    | "not_now"
+    | "not_interested"
+    | "out_of_office"
+    | "unsubscribe"
+    | "bounce"
+    | "other";
+
+export interface Classification {
+    intent: Intent;
+    confidence: number;
+    sentiment: "positive" | "neutral" | "negative";
+    summary: string;
+    suggestedStage: ContactStage | null;
+    meetingAt: string | null;
+    returnDate: string | null;
+}
+
+export type Tone = "professional" | "friendly" | "formal" | "concise";
+export type RewriteAction = "improve" | "shorten" | "formal" | "friendly" | "demo_cta" | "grammar" | "custom";
+
+export interface AiDraft {
+    html: string;
+    warnings: string[];
+}
+
+export type SuggestionStatus = "pending" | "sent" | "rejected" | "superseded";
+
+export interface Suggestion {
+    id: string;
+    threadId: string;
+    forMessageId: string;
+    intent: Intent | null;
+    subject: string;
+    html: string;
+    rationale: string;
+    warnings: string[];
+    status: SuggestionStatus;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    rejectionReason: string;
+    editedBeforeSend: boolean;
+    createdAt: string;
+    thread: { id: string; subject: string; participants: Address[] } | null;
+    forMessage: { from: Address; subject: string; text: string; sentAt: string; summary: string } | null;
+}
+
+export type KnowledgeCategory = "module" | "ai_feature" | "offer" | "company" | "faq" | "case_study";
+
+export interface KnowledgeEntry {
+    id: string;
+    name: string;
+    category: KnowledgeCategory;
+    summary: string;
+    details: string;
+    pitchByRole: Record<string, string>;
+    url: string;
+    active: boolean;
+    updatedAt: string;
+}
+
+export type KnowledgeInput = Omit<KnowledgeEntry, "id" | "updatedAt">;

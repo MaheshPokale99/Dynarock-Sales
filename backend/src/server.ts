@@ -22,6 +22,8 @@ logger.info("MongoDB ready");
 
 const linked = await container.services.contacts.backfill(config.gmail.mailboxAddress);
 if (linked > 0) logger.info({ threads: linked }, "Linked existing conversations to contacts");
+const seeded = await container.services.knowledge.seedIfEmpty();
+if (seeded > 0) logger.info({ entries: seeded }, "Loaded Dynarock product facts into the knowledge base");
 
 if (await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin)) {
     logger.info({ admin: config.auth.bootstrapAdmin?.email }, "Created the first admin from BOOTSTRAP_ADMIN_EMAIL");
@@ -76,6 +78,7 @@ async function shutdown(reason: string, exitCode = 0): Promise<void> {
 
     stopSync();
     server.close();
+    await container.services.ai.idle();
     await container.database.disconnect();
     process.exit(exitCode);
 }

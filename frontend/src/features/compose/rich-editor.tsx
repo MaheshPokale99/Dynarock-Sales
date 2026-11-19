@@ -14,7 +14,7 @@ import {
     Strikethrough,
     Underline,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -147,12 +147,15 @@ export function RichEditor({
     placeholder = "Write your email…",
     className,
     autoFocus,
+    onEditor,
 }: {
     initialHtml: string;
     onChange: (html: string) => void;
     placeholder?: string;
     className?: string;
     autoFocus?: boolean;
+    // Gives the parent the editor, e.g. to put AI text into it.
+    onEditor?: (editor: Editor) => void;
 }) {
     const editor = useEditor({
         extensions: [
@@ -170,6 +173,10 @@ export function RichEditor({
         },
         onUpdate: ({ editor: e }) => onChange(e.getHTML()),
     });
+
+    useEffect(() => {
+        if (editor) onEditor?.(editor);
+    }, [editor, onEditor]);
 
     if (!editor) return <div className={cn("min-h-40", className)} />;
 

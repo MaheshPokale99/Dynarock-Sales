@@ -3,7 +3,9 @@ import type { AppEnv } from "../common/http/app-env.js";
 import { MS_PER_MINUTE } from "../common/constants.js";
 import { rateLimit } from "../common/middleware/rate-limit.js";
 import type { Container } from "../container.js";
+import { createAiRoutes } from "../modules/ai/ai.http.js";
 import { createAuthRoutes } from "../modules/auth/auth.routes.js";
+import { createKnowledgeRoutes } from "../modules/knowledge/knowledge.js";
 import { createContactsRoutes } from "../modules/contacts/contacts.http.js";
 import { createOrganizationsRoutes } from "../modules/organizations/organizations.http.js";
 import { createDraftsRoutes } from "../modules/drafts/drafts.js";
@@ -20,6 +22,12 @@ export function createV1Routes({ config, controllers }: Container) {
         trustProxy: config.rateLimit.trustProxy,
     });
 
+    const aiLimit = rateLimit({
+        windowMs: MS_PER_MINUTE,
+        max: config.rateLimit.aiPerMinute,
+        trustProxy: config.rateLimit.trustProxy,
+    });
+
     return new Hono<AppEnv>()
         .route("/auth", createAuthRoutes(controllers.auth, authLimit))
         .route("/users", createUsersRoutes(controllers.users))
@@ -27,6 +35,8 @@ export function createV1Routes({ config, controllers }: Container) {
         .route("/drafts", createDraftsRoutes(controllers.drafts))
         .route("/files", createFilesRoutes(controllers.files))
         .route("/organizations", createOrganizationsRoutes(controllers.organizations))
+        .route("/knowledge", createKnowledgeRoutes(controllers.knowledge))
+        .route("/", createAiRoutes(controllers.ai, aiLimit))
         .route("/", createContactsRoutes(controllers.contacts))
         .route("/", createMailRoutes(controllers.mail))
         .route("/", createSystemRoutes(controllers.system));

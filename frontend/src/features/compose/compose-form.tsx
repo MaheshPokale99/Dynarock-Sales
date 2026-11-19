@@ -1,9 +1,11 @@
 "use client";
 
-import { FileText, Paperclip, Send, Sparkles, Trash2, X } from "lucide-react";
+import type { Editor } from "@tiptap/react";
+import { FileText, Paperclip, Send, Trash2, TriangleAlert, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,6 +15,7 @@ import { useSendEmail } from "@/hooks/use-mail";
 import { api, errorMessage, type ComposeMode, type DraftAttachment } from "@/lib/api";
 import { fileSize, isEmail } from "@/lib/mail-format";
 import { cn } from "@/lib/utils";
+import { AiAssist, type AiResult } from "./ai-assist";
 import { RecipientInput } from "./recipient-input";
 import { RichEditor } from "./rich-editor";
 
@@ -35,6 +38,14 @@ const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 
 export const withSignature = (signatureHtml: string) =>
     `<p></p>${signatureHtml ? `<p>--<br>${signatureHtml}</p>` : ""}`;
+
+const SIGNATURE_MARK = "<p>--<br>";
+
+// Separates what the user wrote from the signature block added by withSignature.
+export function splitSignature(html: string) {
+    const at = html.lastIndexOf(SIGNATURE_MARK);
+    return at < 0 ? { body: html, signature: "" } : { body: html.slice(0, at), signature: html.slice(at) };
+}
 
 export function ComposeForm({
     init,
@@ -64,9 +75,23 @@ export function ComposeForm({
     const [uploading, setUploading] = useState(0);
     const [draftId, setDraftId] = useState(init.draftId);
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(init.draftId ? "saved" : "idle");
+    const [editor, setEditor] = useState<Editor | null>(null);
+    const [aiWarnings, setAiWarnings] = useState<string[]>([]);
     const fileInput = useRef<HTMLInputElement>(null);
     const dirty = useRef(false);
     const sent = useRef(false);
+
+    // AI text replaces the body; the signature stays underneath.
+    const applyAi = (result: AiResult) => {
+        const { signature } = splitSignature(html);
+        const next = `${result.html}${signature}`;
+        editor?.commands.setContent(next, { emitUpdate: false });
+        dirty.current = true;
+        setHtml(next);
+        if (result.subject && !subject.trim()) setSubject(result.subject);
+        setAiWarnings(result.warnings);
+        if (result.warnings.length === 0) toast.success("AI draft ready. Read it before sending.");
+    };
 
     useEffect(() => onSubjectChange?.(subject), [subject, onSubjectChange]);
 
@@ -221,8 +246,34 @@ export function ComposeForm({
                 className={variant === "window" ? "min-h-0 flex-1" : "max-h-96"}
                 initialHtml={initialHtml}
                 onChange={touch(setHtml)}
+                onEditor={setEditor}
                 autoFocus={init.mode === "reply" || init.mode === "reply_all"}
             />
+
+            {aiWarnings.length > 0 && (
+                <Alert className="mx-3 mb-2 w-auto border-warning/50">
+                    <TriangleAlert className="text-warning" aria-hidden />
+                    <AlertTitle>Check before sending</AlertTitle>
+                    <AlertDescription>
+                        <ul className="list-disc pl-4">
+                            {aiWarnings.map((w) => (
+                                <li key={w}>{w}</li>
+                            ))}
+                        </ul>
+                    </AlertDescription>
+                    <AlertAction>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => setAiWarnings([])}
+                            aria-label="Dismiss"
+                        >
+                            <X aria-hidden />
+                        </Button>
+                    </AlertAction>
+                </Alert>
+            )}
 
             {(attachments.length > 0 || uploading > 0 || init.quoteHtml) && (
                 <div className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2">
@@ -292,15 +343,12 @@ export function ComposeForm({
                     </TooltipTrigger>
                     <TooltipContent>Attach files (20 MB total)</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger render={<span tabIndex={0} />}>
-                        <Button type="button" variant="ghost" size="sm" disabled aria-label="AI Write (coming soon)">
-                            <Sparkles data-icon="inline-start" />
-                            AI Write
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>AI writing and rewriting arrive in the AI phase</TooltipContent>
-                </Tooltip>
+                <AiAssist
+                    to={to}
+                    threadId={init.threadId}
+                    getBody={() => splitSignature(html).body}
+                    onResult={applyAi}
+                />
                 <span className="ml-auto pr-1 text-xs text-muted-foreground" aria-live="polite">
                     {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Draft saved" : ""}
                 </span>

@@ -17,6 +17,8 @@ export const toThreadDto = (t: ThreadDoc) => ({
     startedBy: t.startedBy?.toHexString() ?? null,
     contactIds: (t.contactIds ?? []).map((id) => id.toHexString()),
     organizationId: t.organizationId?.toHexString() ?? null,
+    latestIntent: t.latestIntent ?? null,
+    aiSummary: t.aiSummary ?? "",
 });
 
 export const toMessageDto = (m: MessageDoc) => ({
@@ -34,6 +36,7 @@ export const toMessageDto = (m: MessageDoc) => ({
     sentByUserId: m.sentByUserId?.toHexString() ?? null,
     origin: m.origin,
     isAutoReply: m.isAutoReply,
+    classification: m.classification ?? null,
 });
 
 export type ThreadDto = ReturnType<typeof toThreadDto>;

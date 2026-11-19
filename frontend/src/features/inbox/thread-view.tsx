@@ -1,18 +1,22 @@
 "use client";
 
-import { Archive, ArchiveRestore, ArrowLeft, Forward, MailOpen, Reply, ReplyAll } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Forward, MailOpen, Reply, ReplyAll, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { IntentBadge } from "@/components/common/intent-badge";
 import { ErrorState } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAiStatus, useSuggestions, useSuggestReply } from "@/hooks/use-ai";
 import { useMe } from "@/hooks/use-auth";
 import { useMailbox, useThread, useUpdateThread } from "@/hooks/use-mail";
 import { errorMessage, type ComposeMode, type Message } from "@/lib/api";
 import { displayName, quoteHtml, replyRecipients, subjectFor } from "@/lib/mail-format";
+import { SuggestionCard } from "../approvals/suggestion-card";
 import { ComposeForm, withSignature, type ComposeInit } from "../compose/compose-form";
 import { ContactPanel } from "./contact-panel";
 import { MessageCard } from "./message-card";
@@ -44,6 +48,10 @@ export function ThreadView({
     const update = useUpdateThread();
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [reply, setReply] = useState<ComposeInit | null>(null);
+    const { data: ai } = useAiStatus();
+    const { data: pending } = useSuggestions({ threadId, status: "pending" });
+    const suggest = useSuggestReply();
+    const suggestion = pending?.[0];
 
     const thread = data?.thread;
     const messages = data?.messages ?? [];
@@ -104,10 +112,17 @@ export function ThreadView({
                         <Badge variant={thread.state === "needs_reply" ? "default" : "outline"}>
                             {STATE_LABELS[thread.state]}
                         </Badge>
+                        {thread.latestIntent && <IntentBadge intent={thread.latestIntent} />}
                         <span className="truncate">
                             with {thread.participants.map(displayName).join(", ") || "no one yet"}
                         </span>
                     </div>
+                    {thread.aiSummary && (
+                        <p className="mt-1.5 flex gap-1.5 text-sm text-muted-foreground">
+                            <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                            {thread.aiSummary}
+                        </p>
+                    )}
                 </div>
                 <div className="flex shrink-0 items-center">
                     <IconAction label="Mark as unread" onClick={() => run({ unread: true }, "Marked as unread")}>
@@ -146,6 +161,34 @@ export function ThreadView({
                             }
                         />
                     ))}
+
+                    {!reply && suggestion && (
+                        <SuggestionCard key={suggestion.id} suggestion={suggestion} showThreadLink={false} />
+                    )}
+
+                    {!reply &&
+                        !suggestion &&
+                        ai?.enabled &&
+                        last?.direction === "inbound" &&
+                        thread.state !== "closed" && (
+                            <Button
+                                variant="secondary"
+                                disabled={suggest.isPending}
+                                onClick={() =>
+                                    suggest.mutate(thread.id, {
+                                        onSuccess: () => toast.success("Suggested reply ready"),
+                                        onError: (e) => toast.error(errorMessage(e)),
+                                    })
+                                }
+                            >
+                                {suggest.isPending ? (
+                                    <Spinner data-icon="inline-start" />
+                                ) : (
+                                    <Sparkles data-icon="inline-start" />
+                                )}
+                                Suggest a reply with AI
+                            </Button>
+                        )}
 
                     {reply ? (
                         <ComposeForm

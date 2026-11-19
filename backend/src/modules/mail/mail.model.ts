@@ -1,4 +1,5 @@
 import { Schema, type Types } from "mongoose";
+import { INTENTS, type Intent } from "../ai/ai.model.js";
 
 export const THREAD_STATES = ["needs_reply", "awaiting_reply", "closed"] as const;
 export type ThreadState = (typeof THREAD_STATES)[number];
@@ -34,6 +35,8 @@ export interface ThreadDoc {
     startedBy: Types.ObjectId | null;
     contactIds: Types.ObjectId[];
     organizationId: Types.ObjectId | null;
+    latestIntent: Intent | null;
+    aiSummary: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -57,6 +60,8 @@ export const threadSchema = new Schema<ThreadDoc>(
         startedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
         contactIds: { type: [Schema.Types.ObjectId], default: [] },
         organizationId: { type: Schema.Types.ObjectId, ref: "Organization", default: null },
+        latestIntent: { type: String, enum: [...INTENTS, null], default: null },
+        aiSummary: { type: String, default: "" },
     },
     { timestamps: true },
 );
@@ -74,6 +79,16 @@ export interface AttachmentDoc {
     mimeType: string;
     size: number;
     gmailAttachmentId: string;
+}
+
+export interface MessageClassification {
+    intent: Intent;
+    confidence: number;
+    sentiment: "positive" | "neutral" | "negative";
+    summary: string;
+    suggestedStage: string | null;
+    meetingAt: string | null;
+    returnDate: string | null;
 }
 
 export interface MessageDoc {
@@ -100,6 +115,7 @@ export interface MessageDoc {
     sentByUserId: Types.ObjectId | null;
     origin: MessageOrigin;
     isAutoReply: boolean;
+    classification: MessageClassification | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -135,6 +151,7 @@ export const messageSchema = new Schema<MessageDoc>(
         sentByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
         origin: { type: String, enum: MESSAGE_ORIGINS, required: true },
         isAutoReply: { type: Boolean, default: false },
+        classification: { type: Schema.Types.Mixed, default: null },
     },
     { timestamps: true },
 );

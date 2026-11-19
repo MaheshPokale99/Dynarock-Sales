@@ -34,6 +34,7 @@ const schema = z.object({
 
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+    AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
     TRUST_PROXY: flag.default("false"),
 });
 
@@ -65,7 +66,7 @@ export interface AppConfig {
         syncIntervalMs: number;
     };
     gemini: { apiKey: string; model: string; enabled: boolean };
-    rateLimit: { perMinute: number; authPerMinute: number; trustProxy: boolean };
+    rateLimit: { perMinute: number; authPerMinute: number; aiPerMinute: number; trustProxy: boolean };
 }
 
 // Empty variables count as not set.
@@ -132,6 +133,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
         rateLimit: {
             perMinute: e.RATE_LIMIT_PER_MINUTE,
             authPerMinute: e.AUTH_RATE_LIMIT_PER_MINUTE,
+            aiPerMinute: e.AI_RATE_LIMIT_PER_MINUTE,
             trustProxy: e.TRUST_PROXY === "true",
         },
     };

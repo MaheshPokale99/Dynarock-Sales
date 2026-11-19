@@ -43,7 +43,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
                 href: "/approvals",
                 label: "Approvals",
                 icon: Sparkles,
-                soon: "AI reply drafts waiting for review will show up here.",
             },
             {
                 href: "/follow-ups",
@@ -65,7 +64,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
                 href: "/knowledge",
                 label: "Knowledge",
                 icon: BookOpen,
-                soon: "Dynarock product facts the AI is allowed to use.",
             },
         ],
     },

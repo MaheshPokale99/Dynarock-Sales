@@ -1,4 +1,58 @@
-import type { ContactRole, ContactStage, ContactStatus, OrganizationType, UserRole, UserStatus } from "@/lib/api";
+import type {
+    ContactRole,
+    ContactStage,
+    ContactStatus,
+    Intent,
+    KnowledgeCategory,
+    OrganizationType,
+    Tone,
+    UserRole,
+    UserStatus,
+} from "@/lib/api";
+
+export const INTENT_LABELS: Record<Intent, string> = {
+    interested: "Interested",
+    demo_request: "Wants a demo",
+    question: "Question",
+    pricing: "Pricing",
+    objection: "Objection",
+    not_now: "Not now",
+    not_interested: "Not interested",
+    out_of_office: "Out of office",
+    unsubscribe: "Unsubscribe",
+    bounce: "Bounced",
+    other: "Other",
+};
+
+export const INTENT_TONE: Record<Intent, string> = {
+    interested: "bg-success",
+    demo_request: "bg-success",
+    question: "bg-info",
+    pricing: "bg-info",
+    objection: "bg-warning",
+    not_now: "bg-warning",
+    not_interested: "bg-destructive",
+    out_of_office: "bg-muted-foreground/50",
+    unsubscribe: "bg-destructive",
+    bounce: "bg-destructive",
+    other: "bg-muted-foreground/50",
+};
+
+export const TONE_LABELS: Record<Tone, string> = {
+    professional: "Professional",
+    friendly: "Friendly",
+    formal: "Formal",
+    concise: "Short and direct",
+};
+
+export const KNOWLEDGE_CATEGORY_LABELS: Record<KnowledgeCategory, string> = {
+    company: "Company",
+    offer: "Offer",
+    module: "Module",
+    ai_feature: "AI feature",
+    faq: "FAQ",
+    case_study: "Case study",
+};
 
 export const ROLE_LABELS: Record<UserRole, string> = { admin: "Admin", sales_rep: "Sales rep" };
 

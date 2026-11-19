@@ -16,7 +16,8 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "knip": "knip",
-        "dev:fake-mail": "tsx watch scripts/dev-fake-mail.ts"
+        "dev:fake-mail": "tsx watch scripts/dev-fake-mail.ts",
+        "check:ai": "tsx scripts/check-ai.ts"
     },
     "type": "module",
     "dependencies": {

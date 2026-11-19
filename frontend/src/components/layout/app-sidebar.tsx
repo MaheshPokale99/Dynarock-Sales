@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_NAME, APP_TAGLINE, HOME_PATH, NAV_SECTIONS, isNavActive } from "@/config/navigation";
 import { useCompose } from "@/features/compose/compose-provider";
+import { useSuggestionCounts } from "@/hooks/use-ai";
 import { useThreadCounts } from "@/hooks/use-mail";
 import type { User } from "@/lib/api";
 
@@ -31,6 +32,7 @@ export function AppSidebar({ user }: { user: User }) {
     const close = () => isMobile && setOpenMobile(false);
     const compose = useCompose();
     const { data: counts } = useThreadCounts();
+    const { data: approvals } = useSuggestionCounts();
 
     return (
         <Sidebar collapsible="icon">
@@ -90,6 +92,13 @@ export function AppSidebar({ user }: { user: User }) {
                                                     <Icon aria-hidden />
                                                     <span>{label}</span>
                                                 </SidebarMenuButton>
+                                                {href === "/approvals" && (approvals?.pending ?? 0) > 0 && (
+                                                    <SidebarMenuBadge
+                                                        aria-label={`${approvals?.pending} waiting for approval`}
+                                                    >
+                                                        {approvals?.pending}
+                                                    </SidebarMenuBadge>
+                                                )}
                                                 {href === "/inbox" && (counts?.needs_reply ?? 0) > 0 && (
                                                     <SidebarMenuBadge
                                                         aria-label={`${counts?.needs_reply} need a reply`}

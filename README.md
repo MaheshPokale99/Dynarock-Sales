@@ -14,8 +14,8 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 1 | Accounts: sign in, invitations, roles (admin / sales rep), Team and Settings pages, app shell | Done |
 | 2 | Gmail connection, sync, shared Inbox, Gmail-style Compose, replies, drafts, attachments | Done |
 | 3 | Contacts and colleges (auto-created and auto-linked from email), stage history, pipeline board | Done |
-| 4 | AI: write and rewrite in Compose, reply suggestions, Approvals | Next |
-| 5 | Automatic follow-ups | |
+| 4 | AI (Gemini): AI Write and Rewrite in Compose, reply labels and summaries, suggested replies in Approvals, Knowledge base | Done |
+| 5 | Automatic follow-ups | Next |
 | 6 | Analytics dashboard | |
 
 ## Stack
@@ -73,6 +73,7 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | `npm run lint` / `typecheck` / `format` | Code checks |
 | `npm run db:local` | Zero-install local MongoDB |
 | `npm run dev:fake-mail` | API with a fake Gmail, for trying the Inbox |
+| `npm run check:ai` | Calls Gemini once with your key to confirm AI works |
 | `npm run build` / `start` | Compile to `dist/` and run it |
 
 | In `frontend` | What it does |
@@ -127,9 +128,17 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | GET | `/pipeline?q=&ownerId=` | signed in | Contacts grouped by stage |
 | GET / POST | `/organizations?q=&type=` | signed in | List / add colleges (adding a domain links matching contacts) |
 | GET / PATCH | `/organizations/:id` | signed in | College with people and conversations; edit |
+| GET | `/ai/status` | signed in | Whether AI is configured |
+| POST | `/ai/compose` · `/ai/rewrite` | signed in | AI Write from an instruction; rewrite a draft (improve, shorten, formal, friendly, demo request, grammar) |
+| POST | `/threads/:id/ai/suggest-reply` | signed in | Draft a reply to the latest client email now |
+| GET | `/ai/suggestions?status=&threadId=` · `/ai/suggestions/counts` | signed in | Reply drafts waiting for approval, and history |
+| POST | `/ai/suggestions/:id/send` · `/ai/suggestions/:id/reject` | signed in | Approve (after editing) or reject a draft |
+| GET / POST / PATCH / DELETE | `/knowledge` | read: signed in, write: admin | Product facts the AI may use |
 | GET | `/health` · `/healthz` · `/readyz` | — | Status and probes |
 
 How contacts work: every email sent or received creates the contact if needed and links them to the college with the same email domain (never for gmail.com and other personal providers). Stages move forward on their own, New → Contacted when we email, → Replied when they answer, and never backwards. Unsubscribed, bounced and do-not-contact people can't be emailed.
+
+How the AI works: every new client email is labelled (interested, wants a demo, question, pricing, objection, not now, not interested, out of office, unsubscribe) with a one-line summary. For emails that need an answer, Gemini drafts a reply that waits in **Approvals**; nothing is sent until a person edits and approves it. Unsubscribe requests mark the contact unsubscribed. The AI only uses facts from the **Knowledge** page (seeded from dynarock.in); any figure or link it writes that isn't in the knowledge base or the conversation is flagged for review. Client emails are passed to the model as data, never as instructions.
 
 Safety rules built in: only hashes of session and invite tokens are stored; a disabled user is signed out everywhere; nobody can change their own role or disable themselves; the team always keeps at least one active admin; cross-site form posts are rejected.
 
@@ -142,13 +151,14 @@ backend/src/
   database/                            Mongoose connection and model registry
   common/                              errors, http helpers, logger, middleware, utils
   modules/<name>/                      model, repository, service, controller, routes, schema
-    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  system/
+    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  system/
   integrations/gmail/                  OAuth, REST client, MIME build/parse
+  integrations/gemini/                 Gemini client (JSON output)
   workers/                             background Gmail sync
 frontend/src/
   app/(auth)/                          login, accept-invite
   app/(app)/                           signed-in pages inside the sidebar shell
-  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline
+  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge
   components/ui/                       shadcn components
   hooks/  lib/api/  config/
 ```
