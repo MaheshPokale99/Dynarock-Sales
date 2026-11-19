@@ -23,6 +23,7 @@ export interface OutgoingMessage {
     inReplyTo?: string;
     references?: string[];
     attachments?: OutgoingAttachment[];
+    listUnsubscribe?: string;
 }
 
 export interface ParsedAttachment {
@@ -95,6 +96,15 @@ export async function buildRawMessage(msg: OutgoingMessage): Promise<string> {
         inReplyTo: msg.inReplyTo,
         references: msg.references,
         attachments: msg.attachments,
+        ...(msg.listUnsubscribe
+            ? {
+                  // Set directly: MailComposer ignores the "list" option.
+                  headers: {
+                      "List-Unsubscribe": `<${msg.listUnsubscribe}>`,
+                      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                  },
+              }
+            : {}),
     }).compile();
     // Gmail needs the Bcc header to deliver to Bcc recipients (it strips it from what they receive).
     node.keepBcc = true;

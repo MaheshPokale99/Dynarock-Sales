@@ -7,6 +7,7 @@ import { createLogger } from "../src/common/logger/logger.js";
 import { loadConfig } from "../src/config/env.js";
 import { createContainer } from "../src/container.js";
 import type { GmailApiFactory } from "../src/integrations/gmail/gmail.types.js";
+import { startAutomationWorker } from "../src/workers/automation.worker.js";
 import { startMailSyncWorker } from "../src/workers/mail-sync.worker.js";
 import { FakeGmail } from "../tests/helpers/fake-gmail.js";
 
@@ -61,8 +62,10 @@ await container.database.connect();
 await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin);
 await container.services.contacts.backfill(config.gmail.mailboxAddress);
 await container.services.knowledge.seedIfEmpty();
+await container.services.automation.seedDefaults();
 
 serve({ fetch: createApp(container).fetch, port: config.port }, (info) =>
     logger.info(`Fake-mail API on http://localhost:${info.port}. Settings → Connect Gmail, then send an email.`),
 );
 startMailSyncWorker({ sync: container.services.sync, mailbox: container.services.mailbox, intervalMs: 15_000, logger });
+startAutomationWorker({ automation: container.services.automation, intervalMs: 30_000, logger });

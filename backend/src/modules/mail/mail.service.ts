@@ -102,7 +102,8 @@ export class MailService {
         return toThreadDto(updated ?? thread);
     }
 
-    async send(user: User, input: SendInput) {
+    // options are for internal senders (follow-ups, scheduled emails), never from HTTP input.
+    async send(user: User, input: SendInput, options: { origin?: MessageOrigin; listUnsubscribe?: string } = {}) {
         const recipients = [...input.to, ...input.cc, ...input.bcc];
         if (recipients.length === 0) throw new ValidationError("Add at least one recipient");
         const blocked = await this.deps.contacts.blockedRecipients(recipients);
@@ -140,6 +141,7 @@ export class MailService {
             inReplyTo: base?.rfcMessageId,
             references: base ? [...base.references, base.rfcMessageId].slice(-MAX_REFERENCES) : undefined,
             attachments,
+            listUnsubscribe: options.listUnsubscribe,
         });
 
         let sentId: string;
@@ -155,7 +157,7 @@ export class MailService {
 
         const saved = await this.deps.sync.ingest(doc, await api.getMessage(sentId), {
             sentByUserId: user.id,
-            origin: ORIGINS[input.mode],
+            origin: options.origin ?? ORIGINS[input.mode],
         });
         if (!saved)
             throw new UpstreamError("The email was sent but couldn't be saved. It will appear after the next sync.");

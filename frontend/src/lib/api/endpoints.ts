@@ -34,6 +34,14 @@ import type {
     Suggestion,
     SuggestionStatus,
     Tone,
+    AutomationSettings,
+    ScheduledCounts,
+    ScheduledEmail,
+    ScheduledStatus,
+    SendResult,
+    Sequence,
+    SequenceInput,
+    ThreadAutomation,
 } from "./types";
 
 type UserResponse = { user: User };
@@ -99,7 +107,7 @@ export const api = {
     },
 
     emails: {
-        send: (body: SendInput) => post<{ threadId: string; messageId: string }>("/emails/send", body),
+        send: (body: SendInput) => post<SendResult>("/emails/send", body),
         attachmentUrl: (messageId: string, index: number) => `${API_BASE}/messages/${messageId}/attachments/${index}`,
     },
 
@@ -143,6 +151,28 @@ export const api = {
         send: (id: string, body: { to: string[]; cc: string[]; bcc: string[]; subject: string; html: string }) =>
             post<{ threadId: string; messageId: string }>(`/ai/suggestions/${id}/send`, body),
         reject: (id: string, reason: string) => post<{ ok: true }>(`/ai/suggestions/${id}/reject`, { reason }),
+    },
+
+    automation: {
+        settings: () => request<AutomationSettings>("/automation/settings"),
+        updateSettings: (body: Partial<AutomationSettings>) => patch<AutomationSettings>("/automation/settings", body),
+        sequences: () => request<Sequence[]>("/sequences"),
+        createSequence: (body: SequenceInput) => post<Sequence>("/sequences", body),
+        updateSequence: (id: string, body: Partial<SequenceInput>) => patch<Sequence>(`/sequences/${id}`, body),
+        deleteSequence: (id: string) => request<{ ok: true }>(`/sequences/${id}`, { method: "DELETE" }),
+        forThread: (threadId: string) => request<ThreadAutomation>(`/threads/${threadId}/automation`),
+        enroll: (threadId: string, sequenceId: string) =>
+            post<ThreadAutomation>(`/threads/${threadId}/enroll`, { sequenceId }),
+        enrollment: (id: string, action: "stop" | "pause" | "resume") =>
+            post<ThreadAutomation>(`/enrollments/${id}/${action}`),
+        scheduled: (p: { status?: ScheduledStatus; kind?: "follow_up" | "send_later"; threadId?: string } = {}) =>
+            request<ScheduledEmail[]>(`/scheduled-emails${qs(p)}`),
+        counts: () => request<ScheduledCounts>("/scheduled-emails/counts"),
+        edit: (id: string, body: { subject?: string; html?: string; to?: string[]; cc?: string[]; sendAt?: string }) =>
+            patch<ScheduledEmail>(`/scheduled-emails/${id}`, body),
+        cancel: (id: string) => post<{ ok: true }>(`/scheduled-emails/${id}/cancel`),
+        sendNow: (id: string) => post<ScheduledEmail>(`/scheduled-emails/${id}/send-now`),
+        regenerate: (id: string) => post<ScheduledEmail & { warnings: string[] }>(`/scheduled-emails/${id}/regenerate`),
     },
 
     knowledge: {

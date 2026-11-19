@@ -40,6 +40,8 @@ export class FakeGmail {
     sent: { raw: string; threadId?: string; parsed: Awaited<ReturnType<typeof simpleParser>> }[] = [];
     labelChanges: { id: string; remove: string[] }[] = [];
     revoked: string[] = [];
+    // Message timestamps; tests can point this at their own clock.
+    now: () => number = () => Date.now();
     private seq = 0;
     private readonly run = Math.random().toString(16).slice(2, 8);
 
@@ -89,7 +91,7 @@ export class FakeGmail {
             threadId: d.threadId ?? this.nextId("t"),
             labelIds: d.labels ?? ["INBOX", "UNREAD"],
             snippet: (d.text ?? "").slice(0, 100),
-            internalDate: String(Date.now() + this.seq),
+            internalDate: String(this.now() + this.seq),
             payload: { mimeType: "multipart/mixed", headers, parts },
         });
     }
@@ -146,7 +148,7 @@ export class FakeGmail {
                     threadId: threadId ?? this.nextId("t"),
                     labelIds: ["SENT"],
                     snippet: (parsed.text ?? "").slice(0, 100),
-                    internalDate: String(Date.now() + this.seq),
+                    internalDate: String(this.now() + this.seq),
                     payload: { mimeType: "multipart/mixed", headers, parts },
                 });
                 return { id: message.id, threadId: message.threadId };

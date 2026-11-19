@@ -156,6 +156,93 @@ export interface SendInput {
     html: string;
     attachmentFileIds: string[];
     draftId?: string;
+    followUp?: { sequenceId: string } | null;
+    // ISO time to send later instead of now.
+    sendAt?: string;
+}
+
+export interface SendResult {
+    threadId: string | null;
+    messageId: string | null;
+    scheduled: boolean;
+    scheduledId?: string;
+    sendAt?: string;
+}
+
+export interface SendWindow {
+    days: number[];
+    startHour: number;
+    endHour: number;
+    timezone: string;
+}
+
+export interface AutomationSettings {
+    automationPaused: boolean;
+    dailySendCap: number;
+    sendWindow: SendWindow;
+    defaultSequenceId: string | null;
+}
+
+export interface SequenceStep {
+    delayDays: number;
+    instruction: string;
+    fixedText: string;
+}
+
+export interface Sequence {
+    id: string;
+    name: string;
+    description: string;
+    active: boolean;
+    steps: SequenceStep[];
+    updatedAt: string;
+}
+
+export type SequenceInput = Omit<Sequence, "id" | "updatedAt">;
+
+export type ScheduledStatus = "scheduled" | "sending" | "sent" | "cancelled" | "failed" | "skipped";
+
+export interface ScheduledEmail {
+    id: string;
+    kind: "follow_up" | "send_later";
+    mode: ComposeMode;
+    threadId: string | null;
+    thread: { subject: string; participants: Address[] } | null;
+    to: string[];
+    cc: string[];
+    bcc: string[];
+    subject: string;
+    html: string;
+    sendAt: string;
+    status: ScheduledStatus;
+    statusReason: string;
+    step: number | null;
+    totalSteps: number | null;
+    sequenceName: string | null;
+    aiGenerated: boolean;
+    createdBy: string;
+    lastEditedBy: string | null;
+    updatedAt: string;
+}
+
+export interface ThreadAutomation {
+    enrollment: {
+        id: string;
+        status: "active" | "paused" | "completed" | "stopped";
+        stopReason: "replied" | "unsubscribed" | "bounced" | "manual" | "failed" | null;
+        currentStep: number;
+        totalSteps: number;
+        sequence: { id: string; name: string } | null;
+    } | null;
+    scheduled: ScheduledEmail[];
+}
+
+export interface ScheduledCounts {
+    today: number;
+    upcoming: number;
+    sentToday: number;
+    dailyCap: number;
+    paused: boolean;
 }
 
 export type ContactStage =

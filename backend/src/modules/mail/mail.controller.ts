@@ -3,8 +3,7 @@ import type { AppEnv } from "../../common/http/app-env.js";
 import { download } from "../../common/http/download.js";
 import { parseBody, parseParams, parseQuery } from "../../common/http/request.js";
 import { idParams } from "../../common/http/schemas.js";
-import { currentAuth } from "../auth/auth.middleware.js";
-import { attachmentParams, listQuery, recipientsQuery, sendBody, updateThreadBody } from "./mail.schema.js";
+import { attachmentParams, listQuery, recipientsQuery, updateThreadBody } from "./mail.schema.js";
 import type { MailService } from "./mail.service.js";
 import type { MailSyncService } from "./mail-sync.service.js";
 
@@ -23,11 +22,6 @@ export class MailController {
     update = async (c: Context<AppEnv>) => {
         const { id } = parseParams(c, idParams);
         return c.json(await this.service.update(id, await parseBody(c, updateThreadBody)));
-    };
-
-    send = async (c: Context<AppEnv>) => {
-        const input = await parseBody(c, sendBody);
-        return c.json(await this.service.send(currentAuth(c).user, input), 201);
     };
 
     attachment = async (c: Context<AppEnv>) => {

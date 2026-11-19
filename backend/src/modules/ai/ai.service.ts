@@ -248,6 +248,30 @@ export class AiService {
         return { html: done.html, warnings: done.warnings };
     }
 
+    // Writes follow-up number `step` for a conversation where the client hasn't replied.
+    async writeFollowUp(threadId: string, step: number, totalSteps: number, instruction: string) {
+        this.requireEnabled();
+        const thread = await this.deps.mail.findThread(threadId);
+        if (!thread) throw new NotFoundError("Conversation not found");
+        const messages = await this.deps.mail.messagesOf(thread._id, true);
+        const mailbox = messages.find((m) => m.direction === "outbound")?.from.email ?? "";
+        const contacts = await this.deps.contacts.findByIds(thread.contactIds ?? []);
+        const prompt = [
+            knowledgeBlock(await this.knowledge()),
+            await this.contactsBlock(contacts),
+            this.threadBlock(messages, mailbox),
+            `TASK: Write follow-up ${step} of ${totalSteps}. The client has not replied to our last email. ${instruction}`,
+            "Keep it under 90 words. Do not repeat earlier emails word for word. One clear, low-pressure next step.",
+        ].join("\n\n");
+        const out = await this.run("compose", null, bodySchema, WRITER_SYSTEM, prompt, 0.6);
+        const done = await this.finish(
+            null,
+            out.body,
+            messages.map((m) => m.text),
+        );
+        return { html: done.html, warnings: done.warnings };
+    }
+
     // Labels one client email and stores the result on the message and its thread.
     async classify(message: MessageDoc, thread: ThreadDoc, mailboxEmail: string): Promise<MessageClassification> {
         const messages = await this.deps.mail.messagesOf(thread._id, true);

@@ -9,7 +9,6 @@ export const createMailRoutes = (controller: MailController) =>
         .get("/threads/counts", requireAuth, controller.counts)
         .get("/threads/:id", requireAuth, controller.detail)
         .patch("/threads/:id", requireAuth, controller.update)
-        .post("/emails/send", requireAuth, controller.send)
         .get("/messages/:id/attachments/:index", requireAuth, controller.attachment)
         .get("/recipients", requireAuth, controller.recipients)
         .post("/mailbox/sync", requireAuth, controller.syncNow);

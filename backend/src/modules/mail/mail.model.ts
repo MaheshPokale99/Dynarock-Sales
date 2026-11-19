@@ -4,7 +4,15 @@ import { INTENTS, type Intent } from "../ai/ai.model.js";
 export const THREAD_STATES = ["needs_reply", "awaiting_reply", "closed"] as const;
 export type ThreadState = (typeof THREAD_STATES)[number];
 
-export const MESSAGE_ORIGINS = ["app_compose", "app_reply", "app_forward", "gmail_external", "inbound"] as const;
+export const MESSAGE_ORIGINS = [
+    "app_compose",
+    "app_reply",
+    "app_forward",
+    "app_followup",
+    "app_scheduled",
+    "gmail_external",
+    "inbound",
+] as const;
 export type MessageOrigin = (typeof MESSAGE_ORIGINS)[number];
 
 export interface AddressDoc {

@@ -26,7 +26,7 @@ interface Deps {
     mailbox: MailboxService;
     locks: Locks;
     contacts: Pick<ContactsService, "linkMessage">;
-    onInbound?: (threadId: Types.ObjectId, messageId: Types.ObjectId, mailboxEmail: string) => void;
+    onInbound?: (threadId: Types.ObjectId, messageId: Types.ObjectId, mailboxEmail: string) => void | Promise<void>;
     logger: Logger;
     lockTtlMs: number;
 }
@@ -34,9 +34,11 @@ interface Deps {
 export class MailSyncService {
     constructor(private readonly deps: Deps) {}
 
-    // Called for each new client email (the AI hooks in here).
-    setInboundHook(hook: NonNullable<Deps["onInbound"]>) {
-        this.deps.onInbound = hook;
+    private readonly inboundHooks: NonNullable<Deps["onInbound"]>[] = [];
+
+    // Called for each new client email (AI labelling, stopping follow-ups).
+    addInboundHook(hook: NonNullable<Deps["onInbound"]>) {
+        this.inboundHooks.push(hook);
     }
 
     // Pulls everything new from Gmail since the last sync. Safe to call from several servers.
@@ -121,7 +123,9 @@ export class MailSyncService {
         if (!created && !app) return { thread, message, created };
         await this.recomputeThread(thread._id, mailbox.email, created ? message : null);
         await this.deps.contacts.linkMessage(mailbox.email, thread._id, message, created);
-        if (created && direction === "inbound") this.deps.onInbound?.(thread._id, message._id, mailbox.email);
+        if (created && direction === "inbound") {
+            for (const hook of this.inboundHooks) await hook(thread._id, message._id, mailbox.email);
+        }
         const updated = await this.deps.mail.findThread(thread._id.toHexString());
         return { thread: updated ?? thread, message, created };
     }

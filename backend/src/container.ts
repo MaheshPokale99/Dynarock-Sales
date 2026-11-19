@@ -6,6 +6,8 @@ import { createGmailOAuth } from "./integrations/gmail/gmail-oauth.js";
 import type { GmailApiFactory, GmailOAuth } from "./integrations/gmail/gmail.types.js";
 import { createGeminiModel, type AiModel } from "./integrations/gemini/gemini.js";
 import { AiController } from "./modules/ai/ai.http.js";
+import { AutomationController } from "./modules/automation/automation.http.js";
+import { AutomationService } from "./modules/automation/automation.service.js";
 import { AiService } from "./modules/ai/ai.service.js";
 import { KnowledgeController, KnowledgeService } from "./modules/knowledge/knowledge.js";
 import { ActivitiesRepository } from "./modules/activities/activities.repository.js";
@@ -66,6 +68,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
     };
 
     const knowledge = new KnowledgeService(models);
+    const locks = new Locks(models);
     const contacts = new ContactsService(repositories);
     const organizations = new OrganizationsService({ ...repositories, contactsService: contacts });
     const auth = new AuthService({ ...repositories, config: config.auth, now });
@@ -80,7 +83,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
     const sync = new MailSyncService({
         mail: repositories.mail,
         mailbox,
-        locks: new Locks(models),
+        locks,
         contacts,
         logger,
         lockTtlMs: Math.max(config.gmail.syncIntervalMs * 2, 120_000),
@@ -95,7 +98,18 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         mailService: mail,
         logger,
     });
-    sync.setInboundHook((threadId, messageId, mailboxEmail) => ai.enqueueInbound(threadId, messageId, mailboxEmail));
+    const automation = new AutomationService({
+        ...repositories,
+        models,
+        mailService: mail,
+        ai,
+        locks,
+        config: { apiUrl: config.apiUrl, encryptionKey: config.gmail.encryptionKey },
+        logger,
+        now,
+    });
+    sync.addInboundHook((threadId, messageId) => automation.onInbound(threadId, messageId));
+    sync.addInboundHook((threadId, messageId, mailboxEmail) => ai.enqueueInbound(threadId, messageId, mailboxEmail));
     const system = new SystemService(database, config);
 
     const cookie = { secure: config.auth.cookieSecure };
@@ -105,7 +119,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         logger,
         database,
         repositories,
-        services: { auth, users, mailbox, sync, mail, files, contacts, organizations, knowledge, ai },
+        services: { auth, users, mailbox, sync, mail, files, contacts, organizations, knowledge, ai, automation },
         cookie,
         controllers: {
             auth: new AuthController(auth, { ...cookie, trustProxy: config.rateLimit.trustProxy }),
@@ -118,6 +132,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
             organizations: new OrganizationsController(organizations),
             knowledge: new KnowledgeController(knowledge),
             ai: new AiController(ai),
+            automation: new AutomationController(automation),
             system: new SystemController(system),
         },
     };

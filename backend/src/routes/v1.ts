@@ -4,6 +4,7 @@ import { MS_PER_MINUTE } from "../common/constants.js";
 import { rateLimit } from "../common/middleware/rate-limit.js";
 import type { Container } from "../container.js";
 import { createAiRoutes } from "../modules/ai/ai.http.js";
+import { createAutomationRoutes } from "../modules/automation/automation.http.js";
 import { createAuthRoutes } from "../modules/auth/auth.routes.js";
 import { createKnowledgeRoutes } from "../modules/knowledge/knowledge.js";
 import { createContactsRoutes } from "../modules/contacts/contacts.http.js";
@@ -37,6 +38,7 @@ export function createV1Routes({ config, controllers }: Container) {
         .route("/organizations", createOrganizationsRoutes(controllers.organizations))
         .route("/knowledge", createKnowledgeRoutes(controllers.knowledge))
         .route("/", createAiRoutes(controllers.ai, aiLimit))
+        .route("/", createAutomationRoutes(controllers.automation))
         .route("/", createContactsRoutes(controllers.contacts))
         .route("/", createMailRoutes(controllers.mail))
         .route("/", createSystemRoutes(controllers.system));

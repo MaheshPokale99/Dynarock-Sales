@@ -19,6 +19,7 @@ const schema = z.object({
     BOOTSTRAP_ADMIN_EMAIL: z.email().optional(),
     BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8, "must be at least 8 characters").optional(),
 
+    API_PUBLIC_URL: z.url().optional(),
     MAILBOX_ADDRESS: z.email().default("sales@dynarock.in"),
     GOOGLE_CLIENT_ID: z.string().default(""),
     GOOGLE_CLIENT_SECRET: z.string().default(""),
@@ -49,6 +50,8 @@ export interface AppConfig {
     corsOrigins: string[];
     // First FRONTEND_ORIGIN; used for invite links.
     appUrl: string;
+    // Public base URL of this API (unsubscribe links).
+    apiUrl: string;
     mongoUri: string;
     auth: {
         sessionTtlDays: number;
@@ -106,6 +109,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
         port: e.PORT,
         corsOrigins,
         appUrl: corsOrigins[0] ?? "http://localhost:3000",
+        apiUrl: (e.API_PUBLIC_URL ?? `http://localhost:${e.PORT}`).replace(/\/+$/, ""),
         mongoUri: e.MONGODB_URI,
         auth: {
             sessionTtlDays: e.SESSION_TTL_DAYS,

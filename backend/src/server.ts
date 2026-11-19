@@ -4,6 +4,7 @@ import { SHUTDOWN_TIMEOUT_MS } from "./common/constants.js";
 import { createLogger } from "./common/logger/logger.js";
 import { loadConfig } from "./config/env.js";
 import { createContainer } from "./container.js";
+import { startAutomationWorker } from "./workers/automation.worker.js";
 import { startMailSyncWorker } from "./workers/mail-sync.worker.js";
 
 const config = loadConfig();
@@ -24,6 +25,7 @@ const linked = await container.services.contacts.backfill(config.gmail.mailboxAd
 if (linked > 0) logger.info({ threads: linked }, "Linked existing conversations to contacts");
 const seeded = await container.services.knowledge.seedIfEmpty();
 if (seeded > 0) logger.info({ entries: seeded }, "Loaded Dynarock product facts into the knowledge base");
+if (await container.services.automation.seedDefaults()) logger.info("Created the standard follow-up plan");
 
 if (await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin)) {
     logger.info({ admin: config.auth.bootstrapAdmin?.email }, "Created the first admin from BOOTSTRAP_ADMIN_EMAIL");
@@ -63,6 +65,10 @@ const stopSync = config.gmail.enabled
       })
     : (logger.warn("GOOGLE_CLIENT_ID is not set: the Gmail mailbox can't be connected"), () => undefined);
 
+const stopAutomation = config.gmail.enabled
+    ? startAutomationWorker({ automation: container.services.automation, intervalMs: 60_000, logger })
+    : () => undefined;
+
 let shuttingDown = false;
 
 async function shutdown(reason: string, exitCode = 0): Promise<void> {
@@ -77,6 +83,7 @@ async function shutdown(reason: string, exitCode = 0): Promise<void> {
     forced.unref();
 
     stopSync();
+    stopAutomation();
     server.close();
     await container.services.ai.idle();
     await container.database.disconnect();

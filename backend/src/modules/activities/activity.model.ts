@@ -26,6 +26,12 @@ export const ACTIVITY_ACTIONS = [
     "ai.suggestion_sent",
     "ai.suggestion_rejected",
     "contact.unsubscribed",
+    "followup.enrolled",
+    "followup.stopped",
+    "followup.scheduled",
+    "followup.sent",
+    "followup.cancelled",
+    "followup.edited",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

@@ -1,4 +1,14 @@
 import type { Connection } from "mongoose";
+import {
+    enrollmentSchema,
+    scheduledEmailSchema,
+    sequenceSchema,
+    settingsSchema,
+    type EnrollmentDoc,
+    type ScheduledEmailDoc,
+    type SequenceDoc,
+    type SettingsDoc,
+} from "../modules/automation/automation.model.js";
 import { aiRunSchema, suggestionSchema, type AiRunDoc, type SuggestionDoc } from "../modules/ai/ai.model.js";
 import { knowledgeSchema, type KnowledgeDoc } from "../modules/knowledge/knowledge.model.js";
 import { contactSchema, type ContactDoc } from "../modules/contacts/contact.model.js";
@@ -27,6 +37,10 @@ export function registerModels(connection: Connection) {
         Knowledge: connection.model<KnowledgeDoc>("Knowledge", knowledgeSchema, "knowledge"),
         Suggestion: connection.model<SuggestionDoc>("Suggestion", suggestionSchema, "ai_suggestions"),
         AiRun: connection.model<AiRunDoc>("AiRun", aiRunSchema, "ai_runs"),
+        Settings: connection.model<SettingsDoc>("Settings", settingsSchema, "settings"),
+        Sequence: connection.model<SequenceDoc>("Sequence", sequenceSchema, "sequences"),
+        Enrollment: connection.model<EnrollmentDoc>("Enrollment", enrollmentSchema, "sequence_enrollments"),
+        ScheduledEmail: connection.model<ScheduledEmailDoc>("ScheduledEmail", scheduledEmailSchema, "scheduled_emails"),
     };
 }
 
