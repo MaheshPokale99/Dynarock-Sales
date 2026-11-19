@@ -8,6 +8,16 @@ import { sendBody } from "../mail/mail.schema.js";
 import { SCHEDULED_STATUSES } from "./automation.model.js";
 import type { AutomationService } from "./automation.service.js";
 
+// A zone name Intl understands, e.g. "Asia/Kolkata"; anything else would break every automation run.
+const isTimeZone = (tz: string) => {
+    try {
+        new Intl.DateTimeFormat("en-US", { timeZone: tz });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 const isoDate = z.iso.datetime({ offset: true }).transform((v) => new Date(v));
 
 const composeBody = sendBody.extend({
@@ -23,7 +33,7 @@ const settingsBody = z
             days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
             startHour: z.number().int().min(0).max(23),
             endHour: z.number().int().min(1).max(24),
-            timezone: z.string().min(1).max(60),
+            timezone: z.string().min(1).max(60).refine(isTimeZone, "is not a known time zone"),
         }),
         defaultSequenceId: objectId.nullable(),
     })
@@ -112,18 +122,23 @@ export class AutomationController {
     edit = async (c: Context<AppEnv>) => {
         const { user } = currentAuth(c);
         const { id } = parseParams(c, idParams);
-        return c.json(await this.service.editScheduled(user.id, id, await parseBody(c, editBody)));
+        return c.json(await this.service.editScheduled(user, id, await parseBody(c, editBody)));
     };
+
+    approve = async (c: Context<AppEnv>) =>
+        c.json(await this.service.approveScheduled(currentAuth(c).user, parseParams(c, idParams).id));
 
     cancel = async (c: Context<AppEnv>) => {
         const { user } = currentAuth(c);
-        await this.service.cancelScheduled(user.id, parseParams(c, idParams).id);
+        await this.service.cancelScheduled(user, parseParams(c, idParams).id);
         return c.json({ ok: true });
     };
 
-    sendNow = async (c: Context<AppEnv>) => c.json(await this.service.sendNow(parseParams(c, idParams).id));
+    sendNow = async (c: Context<AppEnv>) =>
+        c.json(await this.service.sendNow(currentAuth(c).user, parseParams(c, idParams).id));
 
-    regenerate = async (c: Context<AppEnv>) => c.json(await this.service.regenerate(parseParams(c, idParams).id));
+    regenerate = async (c: Context<AppEnv>) =>
+        c.json(await this.service.regenerate(currentAuth(c).user, parseParams(c, idParams).id));
 }
 
 export const createAutomationRoutes = (controller: AutomationController) =>
@@ -142,5 +157,6 @@ export const createAutomationRoutes = (controller: AutomationController) =>
         .get("/scheduled-emails/counts", requireAuth, controller.counts)
         .patch("/scheduled-emails/:id", requireAuth, controller.edit)
         .post("/scheduled-emails/:id/cancel", requireAuth, controller.cancel)
+        .post("/scheduled-emails/:id/approve", requireAuth, controller.approve)
         .post("/scheduled-emails/:id/send-now", requireAuth, controller.sendNow)
         .post("/scheduled-emails/:id/regenerate", requireAuth, controller.regenerate);

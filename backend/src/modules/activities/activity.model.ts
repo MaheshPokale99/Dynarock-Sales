@@ -32,6 +32,8 @@ export const ACTIVITY_ACTIONS = [
     "followup.sent",
     "followup.cancelled",
     "followup.edited",
+    "followup.approved",
+    "followup.sent_now",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

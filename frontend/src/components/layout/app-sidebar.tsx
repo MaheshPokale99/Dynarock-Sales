@@ -79,7 +79,7 @@ export function AppSidebar({ user }: { user: User }) {
                             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {items.map(({ href, label, icon: Icon, soon }) => {
+                                    {items.map(({ href, label, icon: Icon }) => {
                                         const active = isNavActive(pathname, href);
                                         return (
                                             <SidebarMenuItem key={href}>
@@ -111,11 +111,6 @@ export function AppSidebar({ user }: { user: User }) {
                                                         aria-label={`${counts?.needs_reply} need a reply`}
                                                     >
                                                         {counts?.needs_reply}
-                                                    </SidebarMenuBadge>
-                                                )}
-                                                {soon && (
-                                                    <SidebarMenuBadge className="text-[10px] font-normal text-muted-foreground">
-                                                        Soon
                                                     </SidebarMenuBadge>
                                                 )}
                                             </SidebarMenuItem>

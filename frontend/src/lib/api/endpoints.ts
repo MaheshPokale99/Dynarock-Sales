@@ -43,6 +43,8 @@ import type {
     SequenceInput,
     ThreadAutomation,
     Dashboard,
+    EmailTemplate,
+    TemplateInput,
 } from "./types";
 
 type UserResponse = { user: User };
@@ -173,11 +175,21 @@ export const api = {
             patch<ScheduledEmail>(`/scheduled-emails/${id}`, body),
         cancel: (id: string) => post<{ ok: true }>(`/scheduled-emails/${id}/cancel`),
         sendNow: (id: string) => post<ScheduledEmail>(`/scheduled-emails/${id}/send-now`),
+        approve: (id: string) => post<ScheduledEmail>(`/scheduled-emails/${id}/approve`),
         regenerate: (id: string) => post<ScheduledEmail & { warnings: string[] }>(`/scheduled-emails/${id}/regenerate`),
     },
 
     analytics: {
         dashboard: (days: 7 | 30 | 90) => request<Dashboard>(`/analytics/dashboard?days=${days}`),
+    },
+
+    templates: {
+        list: () => request<EmailTemplate[]>("/templates"),
+        create: (body: TemplateInput) => post<EmailTemplate>("/templates", body),
+        update: (id: string, body: Partial<TemplateInput>) => patch<EmailTemplate>(`/templates/${id}`, body),
+        remove: (id: string) => request<{ ok: true }>(`/templates/${id}`, { method: "DELETE" }),
+        render: (id: string, to: string[]) =>
+            post<{ subject: string; html: string }>(`/templates/${id}/render`, { to }),
     },
 
     knowledge: {

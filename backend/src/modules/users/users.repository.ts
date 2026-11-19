@@ -15,9 +15,10 @@ const toUser = (doc: UserDoc): UserWithSecret => ({
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     passwordHash: doc.passwordHash,
+    lockedUntil: doc.lockedUntil ?? null,
 });
 
-export const withoutSecret = ({ passwordHash: _hash, ...user }: UserWithSecret): User => user;
+export const withoutSecret = ({ passwordHash: _hash, lockedUntil: _lock, ...user }: UserWithSecret): User => user;
 
 interface NewUser {
     name: string;
@@ -79,6 +80,21 @@ export class UsersRepository {
     }
 
     async recordLogin(id: string, at: Date): Promise<void> {
-        await this.models.User.updateOne({ _id: id }, { $set: { lastLoginAt: at } });
+        await this.models.User.updateOne(
+            { _id: id },
+            { $set: { lastLoginAt: at, loginFailures: 0, lockedUntil: null } },
+        );
+    }
+
+    // Counts a failed sign-in; after `max` in a row the account is locked until `lockUntil`.
+    async recordFailedLogin(id: string, max: number, lockUntil: Date): Promise<void> {
+        const doc = await this.models.User.findByIdAndUpdate(
+            id,
+            { $inc: { loginFailures: 1 } },
+            { returnDocument: "after" },
+        ).lean<UserDoc>();
+        if (doc && doc.loginFailures >= max) {
+            await this.models.User.updateOne({ _id: id }, { $set: { loginFailures: 0, lockedUntil: lockUntil } });
+        }
     }
 }

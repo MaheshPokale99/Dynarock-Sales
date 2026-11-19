@@ -34,6 +34,16 @@ describe("sign in", () => {
         assert.equal(wrong.body.error.message, unknown.body.error.message);
     });
 
+    it("locks the account for a while after 10 wrong passwords, even for the right one", async () => {
+        const client = new Client(stack);
+        for (let i = 0; i < 10; i++) {
+            assert.equal((await client.post("/auth/login", { email: ADMIN.email, password: "nope-nope" })).status, 401);
+        }
+        const locked = await client.post("/auth/login", { email: ADMIN.email, password: ADMIN.password });
+        assert.equal(locked.status, 429);
+        assert.equal(locked.body.error.code, "ACCOUNT_LOCKED");
+    });
+
     it("rejects protected routes without a session and after sign out", async () => {
         const client = new Client(stack);
         assert.equal((await client.get("/auth/me")).status, 401);

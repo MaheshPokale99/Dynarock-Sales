@@ -11,6 +11,7 @@ import {
 } from "../modules/automation/automation.model.js";
 import { aiRunSchema, suggestionSchema, type AiRunDoc, type SuggestionDoc } from "../modules/ai/ai.model.js";
 import { knowledgeSchema, type KnowledgeDoc } from "../modules/knowledge/knowledge.model.js";
+import { templateSchema, type TemplateDoc } from "../modules/templates/templates.js";
 import { contactSchema, type ContactDoc } from "../modules/contacts/contact.model.js";
 import { organizationSchema, type OrganizationDoc } from "../modules/organizations/organization.model.js";
 import { activitySchema, type ActivityDoc } from "../modules/activities/activity.model.js";
@@ -41,6 +42,7 @@ export function registerModels(connection: Connection) {
         Sequence: connection.model<SequenceDoc>("Sequence", sequenceSchema, "sequences"),
         Enrollment: connection.model<EnrollmentDoc>("Enrollment", enrollmentSchema, "sequence_enrollments"),
         ScheduledEmail: connection.model<ScheduledEmailDoc>("ScheduledEmail", scheduledEmailSchema, "scheduled_emails"),
+        Template: connection.model<TemplateDoc>("Template", templateSchema, "templates"),
     };
 }
 

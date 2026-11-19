@@ -123,6 +123,7 @@ export interface MessageDoc {
     sentByUserId: Types.ObjectId | null;
     origin: MessageOrigin;
     isAutoReply: boolean;
+    authResult: "pass" | "fail" | "unknown";
     classification: MessageClassification | null;
     createdAt: Date;
     updatedAt: Date;
@@ -159,6 +160,7 @@ export const messageSchema = new Schema<MessageDoc>(
         sentByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
         origin: { type: String, enum: MESSAGE_ORIGINS, required: true },
         isAutoReply: { type: Boolean, default: false },
+        authResult: { type: String, enum: ["pass", "fail", "unknown"], default: "unknown" },
         classification: { type: Schema.Types.Mixed, default: null },
     },
     { timestamps: true },

@@ -63,6 +63,7 @@ await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin);
 await container.services.contacts.backfill(config.gmail.mailboxAddress);
 await container.services.knowledge.seedIfEmpty();
 await container.services.automation.seedDefaults();
+await container.services.templates.seedIfEmpty();
 
 serve({ fetch: createApp(container).fetch, port: config.port }, (info) =>
     logger.info(`Fake-mail API on http://localhost:${info.port}. Settings → Connect Gmail, then send an email.`),

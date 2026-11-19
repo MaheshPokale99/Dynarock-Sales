@@ -105,7 +105,8 @@ export class MailSyncService {
         const parsed = parseGmailMessage(gm);
         if (!app && parsed.labelIds.some((l) => SKIP_LABELS.has(l))) return null;
 
-        const direction = parsed.from.email === mailbox.email ? "outbound" : "inbound";
+        // Gmail's SENT label (or our own send) decides; the From header can be forged.
+        const direction = app || parsed.labelIds.includes("SENT") ? "outbound" : "inbound";
         const origin: MessageOrigin = app?.origin ?? (direction === "outbound" ? "gmail_external" : "inbound");
         const thread = await this.deps.mail.ensureThread(mailbox._id, parsed.gmailThreadId, {
             subject: cleanSubject(parsed.subject) || "(no subject)",

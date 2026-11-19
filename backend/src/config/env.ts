@@ -37,7 +37,15 @@ const schema = z.object({
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
     TRUST_PROXY: flag.default("false"),
+
+    USER_DAILY_SEND_LIMIT: z.coerce.number().int().positive().default(200),
+    MAILBOX_DAILY_SEND_LIMIT: z.coerce.number().int().positive().default(1500),
+    AI_DAILY_CALL_LIMIT: z.coerce.number().int().positive().default(1500),
 });
+
+// Shipped example values that must never reach production.
+const EXAMPLE_PASSWORDS = new Set(["change-me-now"]);
+const MIN_PRODUCTION_ADMIN_PASSWORD = 16;
 
 export const ENV_KEYS = Object.keys(schema.shape);
 
@@ -70,6 +78,7 @@ export interface AppConfig {
     };
     gemini: { apiKey: string; model: string; enabled: boolean };
     rateLimit: { perMinute: number; authPerMinute: number; aiPerMinute: number; trustProxy: boolean };
+    limits: { userDailySends: number; mailboxDailySends: number; aiDailyCalls: number };
 }
 
 // Empty variables count as not set.
@@ -91,6 +100,17 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     if (Boolean(e.BOOTSTRAP_ADMIN_EMAIL) !== Boolean(e.BOOTSTRAP_ADMIN_PASSWORD)) {
         throw new Error(
             "Invalid environment configuration:\n  BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD must be set together",
+        );
+    }
+
+    const adminPassword = e.BOOTSTRAP_ADMIN_PASSWORD;
+    if (
+        isProduction &&
+        adminPassword &&
+        (EXAMPLE_PASSWORDS.has(adminPassword) || adminPassword.length < MIN_PRODUCTION_ADMIN_PASSWORD)
+    ) {
+        throw new Error(
+            `Invalid environment configuration:\n  BOOTSTRAP_ADMIN_PASSWORD must be your own password of at least ${MIN_PRODUCTION_ADMIN_PASSWORD} characters in production`,
         );
     }
 
@@ -139,6 +159,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
             authPerMinute: e.AUTH_RATE_LIMIT_PER_MINUTE,
             aiPerMinute: e.AI_RATE_LIMIT_PER_MINUTE,
             trustProxy: e.TRUST_PROXY === "true",
+        },
+        limits: {
+            userDailySends: e.USER_DAILY_SEND_LIMIT,
+            mailboxDailySends: e.MAILBOX_DAILY_SEND_LIMIT,
+            aiDailyCalls: e.AI_DAILY_CALL_LIMIT,
         },
     };
 }

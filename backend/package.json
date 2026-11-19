@@ -17,7 +17,8 @@
         "lint:fix": "eslint . --fix",
         "knip": "knip",
         "dev:fake-mail": "tsx watch scripts/dev-fake-mail.ts",
-        "check:ai": "tsx scripts/check-ai.ts"
+        "check:ai": "tsx scripts/check-ai.ts",
+        "admin:reset-password": "tsx scripts/reset-admin-password.ts"
     },
     "type": "module",
     "dependencies": {
@@ -33,7 +34,6 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/mailparser": "^3.9.0",
         "@types/node": "^26.6.5",
         "@types/nodemailer": "^8.0.2",
         "eslint": "^10.12.0",

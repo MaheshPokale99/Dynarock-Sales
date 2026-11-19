@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { ConflictError, NotFoundError, ValidationError } from "../../common/errors/app-error.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../common/errors/app-error.js";
 import { isDuplicateKey } from "../../database/database.js";
 import type { ActivitiesRepository } from "../activities/activities.repository.js";
 import type { ActivityDoc } from "../activities/activity.model.js";
@@ -164,8 +164,13 @@ export class ContactsService {
         }
     }
 
-    async update(actorId: string, id: string, input: ContactUpdate) {
+    async update(actor: { id: string; role: "admin" | "sales_rep" }, id: string, input: ContactUpdate) {
+        const actorId = actor.id;
         const contact = await this.require(id);
+        // Making an opted-out or bounced contact emailable again is an admin decision.
+        if (input.status && input.status !== contact.status && contact.status !== "active" && actor.role !== "admin") {
+            throw new ForbiddenError("Only an admin can change the status of a contact who opted out or bounced.");
+        }
         if (input.stage === "lost" && contact.stage !== "lost" && !input.lostReason?.trim() && !contact.lostReason) {
             throw new ValidationError("Add a reason when marking a contact as lost", [
                 { path: "lostReason", message: "is required when the stage is Lost" },
@@ -223,7 +228,7 @@ export class ContactsService {
     // Recipients we must not email (unsubscribed, bounced, do not contact).
     async blockedRecipients(emails: string[]): Promise<ContactDoc[]> {
         if (emails.length === 0) return [];
-        return (await this.deps.contacts.findByEmails(emails)).filter((c) => c.status !== "active");
+        return (await this.deps.contacts.findByCanonicalEmails(emails)).filter((c) => c.status !== "active");
     }
 
     async forThread(contactIds: Types.ObjectId[]) {

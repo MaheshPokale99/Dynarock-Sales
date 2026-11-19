@@ -15,6 +15,7 @@ export interface User {
 
 export interface UserWithSecret extends User {
     passwordHash: string | null;
+    lockedUntil: Date | null;
 }
 
 export interface TeamMember extends User {

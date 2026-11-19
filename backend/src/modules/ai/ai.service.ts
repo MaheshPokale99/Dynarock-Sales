@@ -12,6 +12,7 @@ import type { Models } from "../../database/models.js";
 import type { AiModel } from "../../integrations/gemini/gemini.js";
 import { htmlToText } from "../../integrations/gmail/mime.js";
 import type { ActivitiesRepository } from "../activities/activities.repository.js";
+import { startOfLocalDay } from "../automation/send-window.js";
 import { CONTACT_STAGES, type ContactDoc } from "../contacts/contact.model.js";
 import type { ContactsRepository } from "../contacts/contacts.repository.js";
 import type { KnowledgeService } from "../knowledge/knowledge.js";
@@ -55,9 +56,15 @@ const REPLY_INTENTS = new Set<Intent>([
     "other",
 ]);
 const MAX_MESSAGE_CHARS = 2500;
+const LIMIT_TIMEZONE = "Asia/Kolkata";
+// Automatic AI work per client email address per day, and emails waiting for AI at once.
+const MAX_AUTO_PER_SENDER = 5;
+const MAX_QUEUE = 100;
 
 const toJsonSchema = (schema: z.ZodType) => z.toJSONSchema(schema, { target: "draft-7" });
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+// What a person actually sees: the HTML part when there is one (a hidden text part can say anything).
+const visibleText = (m: Pick<MessageDoc, "html" | "text">) => (m.html ? htmlToText(m.html) : m.text);
 
 export const toSuggestionDto = (s: SuggestionDoc) => ({
     id: s._id.toHexString(),
@@ -85,13 +92,19 @@ interface Deps {
     mail: MailRepository;
     mailService: MailService;
     activities: ActivitiesRepository;
+    limits: { aiDailyCalls: number };
     logger: Logger;
+    now?: () => Date;
 }
 
 export class AiService {
     private queue: Promise<void> = Promise.resolve();
+    private queued = 0;
+    private readonly now: () => Date;
 
-    constructor(private readonly deps: Deps) {}
+    constructor(private readonly deps: Deps) {
+        this.now = deps.now ?? (() => new Date());
+    }
 
     get enabled() {
         return this.deps.model.enabled;
@@ -111,6 +124,12 @@ export class AiService {
         prompt: string,
         temperature: number,
     ): Promise<T> {
+        if (await this.overBudget())
+            throw new AppError(
+                "The team has used today's AI allowance. It resets at midnight India time.",
+                429,
+                "AI_DAILY_LIMIT",
+            );
         const started = Date.now();
         let inputTokens = 0;
         let outputTokens = 0;
@@ -164,11 +183,21 @@ export class AiService {
         });
     }
 
+    private startOfDay() {
+        return startOfLocalDay(this.now(), LIMIT_TIMEZONE);
+    }
+
+    private async overBudget() {
+        const used = await this.deps.models.AiRun.countDocuments({ createdAt: { $gte: this.startOfDay() } });
+        return used >= this.deps.limits.aiDailyCalls;
+    }
+
     private async knowledge() {
         return this.deps.knowledge.list(true);
     }
 
-    private async contactsBlock(contacts: ContactDoc[]): Promise<string> {
+    // Notes are internal; leave them out of emails that send without a person reading them first.
+    private async contactsBlock(contacts: ContactDoc[], withNotes = true): Promise<string> {
         if (contacts.length === 0) return "RECIPIENT: unknown (no contact details yet).";
         const orgs = await this.deps.organizations.findByIds(
             contacts.flatMap((c) => (c.organizationId ? [c.organizationId] : [])),
@@ -183,7 +212,7 @@ export class AiService {
                     ? `at ${org.name}${org.city ? `, ${org.city}` : ""}${org.studentCount ? `, ~${org.studentCount} students` : ""}${org.currentSystems ? `, uses: ${org.currentSystems}` : ""}`
                     : "",
                 `stage: ${c.stage}`,
-                c.notes ? `notes: ${truncate(c.notes, 400)}` : "",
+                withNotes && c.notes ? `notes: ${truncate(c.notes, 400)}` : "",
             ]
                 .filter(Boolean)
                 .join(" | ");
@@ -191,11 +220,11 @@ export class AiService {
         return `RECIPIENT(S):\n${lines.join("\n")}`;
     }
 
-    private threadBlock(messages: MessageDoc[], mailboxEmail: string): string {
+    private threadBlock(messages: MessageDoc[]): string {
         const recent = messages.slice(-6);
         const parts = recent.map((m) => {
-            const who = m.from.email === mailboxEmail ? "DYNAROCK" : `CLIENT ${m.from.name || m.from.email}`;
-            return `[${m.sentAt.toISOString().slice(0, 10)}] ${who}:\n${truncate(m.text || htmlToText(m.html), MAX_MESSAGE_CHARS)}`;
+            const who = m.direction === "outbound" ? "DYNAROCK" : `CLIENT ${m.from.name || m.from.email}`;
+            return `[${m.sentAt.toISOString().slice(0, 10)}] ${who}:\n${truncate(visibleText(m), MAX_MESSAGE_CHARS)}`;
         });
         return `<thread>\n${parts.join("\n---\n")}\n</thread>`;
     }
@@ -211,13 +240,12 @@ export class AiService {
         const contacts = input.to.length ? await this.deps.contacts.findByEmails(input.to) : [];
         const thread = input.threadId ? await this.deps.mail.findThread(input.threadId) : null;
         const messages = thread ? await this.deps.mail.messagesOf(thread._id, true) : [];
-        const mailbox = thread ? (messages.find((m) => m.direction === "outbound")?.from.email ?? "") : "";
 
         const prompt = [
             knowledgeBlock(await this.knowledge()),
             await this.contactsBlock(contacts),
             input.to.length && contacts.length === 0 ? `Recipient email(s): ${input.to.join(", ")}` : "",
-            messages.length ? this.threadBlock(messages, mailbox) : "",
+            messages.length ? this.threadBlock(messages) : "",
             `SENDER: ${user.name}, Dynarock sales team.`,
             `TONE: ${input.tone}.`,
             `TASK: ${input.instruction}`,
@@ -227,8 +255,7 @@ export class AiService {
             .join("\n\n");
 
         const out = await this.run("compose", user.id, emailSchema, WRITER_SYSTEM, prompt, 0.6);
-        const sources = messages.map((m) => m.text);
-        const done = await this.finish(user.id, out.body, sources);
+        const done = await this.finish(user.id, out.body, messages.map(visibleText));
         return { subject: out.subject.trim(), html: done.html, warnings: done.warnings };
     }
 
@@ -253,32 +280,28 @@ export class AiService {
         this.requireEnabled();
         const thread = await this.deps.mail.findThread(threadId);
         if (!thread) throw new NotFoundError("Conversation not found");
-        const messages = await this.deps.mail.messagesOf(thread._id, true);
-        const mailbox = messages.find((m) => m.direction === "outbound")?.from.email ?? "";
+        // Auto-replies are written by whoever controls the client's mailbox, so they don't reach the prompt.
+        const messages = (await this.deps.mail.messagesOf(thread._id, true)).filter((m) => !m.isAutoReply);
         const contacts = await this.deps.contacts.findByIds(thread.contactIds ?? []);
         const prompt = [
             knowledgeBlock(await this.knowledge()),
-            await this.contactsBlock(contacts),
-            this.threadBlock(messages, mailbox),
+            await this.contactsBlock(contacts, false),
+            this.threadBlock(messages),
             `TASK: Write follow-up ${step} of ${totalSteps}. The client has not replied to our last email. ${instruction}`,
             "Keep it under 90 words. Do not repeat earlier emails word for word. One clear, low-pressure next step.",
         ].join("\n\n");
         const out = await this.run("compose", null, bodySchema, WRITER_SYSTEM, prompt, 0.6);
-        const done = await this.finish(
-            null,
-            out.body,
-            messages.map((m) => m.text),
-        );
+        const done = await this.finish(null, out.body, messages.map(visibleText));
         return { html: done.html, warnings: done.warnings };
     }
 
     // Labels one client email and stores the result on the message and its thread.
-    async classify(message: MessageDoc, thread: ThreadDoc, mailboxEmail: string): Promise<MessageClassification> {
+    async classify(message: MessageDoc, thread: ThreadDoc): Promise<MessageClassification> {
         const messages = await this.deps.mail.messagesOf(thread._id, true);
         const earlier = messages.filter((m) => m.sentAt < message.sentAt);
         const prompt = [
-            earlier.length ? `Earlier in the conversation:\n${this.threadBlock(earlier, mailboxEmail)}` : "",
-            `The reply to label:\n<email>\nFrom: ${message.from.name} <${message.from.email}>\nSubject: ${message.subject}\nAuto-reply headers: ${message.isAutoReply ? "yes" : "no"}\n\n${truncate(message.text || htmlToText(message.html), 4000)}\n</email>`,
+            earlier.length ? `Earlier in the conversation:\n${this.threadBlock(earlier)}` : "",
+            `The reply to label:\n<email>\nFrom: ${message.from.name} <${message.from.email}>\nSubject: ${message.subject}\nAuto-reply headers: ${message.isAutoReply ? "yes" : "no"}\n\n${truncate(visibleText(message), 4000)}\n</email>`,
         ]
             .filter(Boolean)
             .join("\n\n");
@@ -303,7 +326,6 @@ export class AiService {
         if (!target || target.direction !== "inbound")
             throw new ConflictError("There's no client email here to reply to.");
 
-        const mailbox = messages.find((m) => m.direction === "outbound")?.from.email ?? "";
         const contacts = await this.deps.contacts.findByIds(thread.contactIds ?? []);
         const label = target.classification
             ? `The client's email was labelled "${target.classification.intent}": ${target.classification.summary}`
@@ -311,10 +333,7 @@ export class AiService {
         const prompt = [
             knowledgeBlock(await this.knowledge()),
             await this.contactsBlock(contacts),
-            this.threadBlock(
-                messages.filter((m) => m.sentAt <= target.sentAt),
-                mailbox,
-            ),
+            this.threadBlock(messages.filter((m) => m.sentAt <= target.sentAt)),
             label,
             "TASK: Write the Dynarock sales team's reply to the client's latest email. Answer what they asked using only KNOWLEDGE, and propose a clear next step (usually a short demo). Also give a one-sentence rationale for the salesperson.",
         ]
@@ -322,11 +341,7 @@ export class AiService {
             .join("\n\n");
 
         const out = await this.run("reply", userId, replySchema, WRITER_SYSTEM, prompt, 0.5);
-        const done = await this.finish(
-            userId,
-            out.body,
-            messages.map((m) => m.text),
-        );
+        const done = await this.finish(userId, out.body, messages.map(visibleText));
         await this.deps.models.Suggestion.deleteMany({ forMessageId: target._id, status: "pending" });
         await this.deps.models.Suggestion.updateMany(
             { threadId: thread._id, status: "pending" },
@@ -353,11 +368,19 @@ export class AiService {
     }
 
     // Runs for every new client email, one at a time in the background.
-    enqueueInbound(threadId: Types.ObjectId, messageId: Types.ObjectId, mailboxEmail: string): void {
+    enqueueInbound(threadId: Types.ObjectId, messageId: Types.ObjectId): void {
         if (!this.enabled) return;
+        if (this.queued >= MAX_QUEUE) {
+            this.deps.logger.warn({ messageId: messageId.toHexString() }, "AI queue is full; skipping a client email");
+            return;
+        }
+        this.queued++;
         this.queue = this.queue
-            .then(() => this.processInbound(threadId, messageId, mailboxEmail))
-            .catch((error: unknown) => this.deps.logger.warn({ err: error }, "AI processing of a client email failed"));
+            .then(() => this.processInbound(threadId, messageId))
+            .catch((error: unknown) => this.deps.logger.warn({ err: error }, "AI processing of a client email failed"))
+            .finally(() => {
+                this.queued--;
+            });
     }
 
     // Resolves when queued AI work is done (used by tests and shutdown).
@@ -365,10 +388,20 @@ export class AiService {
         return this.queue;
     }
 
-    private async processInbound(threadId: Types.ObjectId, messageId: Types.ObjectId, mailboxEmail: string) {
+    private async processInbound(threadId: Types.ObjectId, messageId: Types.ObjectId) {
         const thread = await this.deps.mail.findThread(threadId.toHexString());
         const message = await this.deps.mail.findMessage(messageId.toHexString());
         if (!thread || !message || message.direction !== "inbound") return;
+        // Only conversations we started or answered: a stranger can't spend the AI budget by emailing us.
+        if (!thread.lastOutboundAt) return;
+        if (await this.overBudget()) return;
+        const fromSender = await this.deps.models.Message.countDocuments({
+            direction: "inbound",
+            "from.email": message.from.email,
+            classification: { $ne: null },
+            createdAt: { $gte: this.startOfDay() },
+        });
+        if (fromSender >= MAX_AUTO_PER_SENDER) return;
 
         // A newer client email makes older drafts in this thread outdated.
         await this.deps.models.Suggestion.updateMany(
@@ -376,8 +409,10 @@ export class AiService {
             { $set: { status: "superseded" } },
         );
 
-        const result = await this.classify(message, thread, mailboxEmail);
-        if (result.intent === "unsubscribe") await this.unsubscribe(message.from.email, thread);
+        const result = await this.classify(message, thread);
+        // A sender that failed Gmail's authentication check could be forging someone else's address.
+        if (result.intent === "unsubscribe" && message.authResult !== "fail")
+            await this.unsubscribe(message.from.email, thread);
         if (message.isAutoReply || !REPLY_INTENTS.has(result.intent)) return;
 
         const latestInbound = (await this.deps.mail.messagesOf(thread._id)).findLast((m) => m.direction === "inbound");
@@ -409,7 +444,7 @@ export class AiService {
             ThreadDoc[]
         >();
         const messages = await this.deps.models.Message.find({ _id: { $in: docs.map((d) => d.forMessageId) } })
-            .select("from subject snippet sentAt classification text")
+            .select("from subject snippet sentAt classification text html")
             .lean<MessageDoc[]>();
         const threadById = new Map(threads.map((t) => [t._id.toHexString(), t]));
         const messageById = new Map(messages.map((m) => [m._id.toHexString(), m]));
@@ -423,7 +458,7 @@ export class AiService {
                     ? {
                           from: m.from,
                           subject: m.subject,
-                          text: truncate(m.text, 3000),
+                          text: truncate(visibleText(m), 3000),
                           sentAt: m.sentAt,
                           summary: m.classification?.summary ?? "",
                       }

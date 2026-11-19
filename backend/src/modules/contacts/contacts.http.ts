@@ -55,7 +55,7 @@ export class ContactsController {
     update = async (c: Context<AppEnv>) => {
         const { user } = currentAuth(c);
         const { id } = parseParams(c, idParams);
-        return c.json(await this.service.update(user.id, id, await parseBody(c, updateBody)));
+        return c.json(await this.service.update(user, id, await parseBody(c, updateBody)));
     };
 
     pipeline = async (c: Context<AppEnv>) => c.json(await this.service.pipeline(parseQuery(c, pipelineQuery)));

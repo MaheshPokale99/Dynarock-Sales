@@ -16,6 +16,8 @@ export type ContactPatch = Partial<Omit<ContactDoc, "_id" | "email" | "domain" |
 
 export const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export const domainOf = (email: string) => email.split("@")[1]?.toLowerCase() ?? "";
+// "Name+tag@x.com" -> "name@x.com"
+export const canonicalEmail = (email: string) => email.toLowerCase().replace(/\+[^@]*@/, "@");
 
 export class ContactsRepository {
     constructor(private readonly models: Models) {}
@@ -27,6 +29,16 @@ export class ContactsRepository {
 
     findByEmails(emails: string[]): Promise<ContactDoc[]> {
         return this.models.Contact.find({ email: { $in: emails.map((e) => e.toLowerCase()) } }).lean<ContactDoc[]>();
+    }
+
+    // Matches each address with or without a +tag, so "a+x@d" and "a@d" find each other.
+    findByCanonicalEmails(emails: string[]): Promise<ContactDoc[]> {
+        const patterns = [...new Set(emails.map(canonicalEmail))].map((e) => {
+            const [local, domain] = e.split("@");
+            return new RegExp(`^${escapeRegex(local ?? "")}(\\+[^@]*)?@${escapeRegex(domain ?? "")}$`);
+        });
+        if (patterns.length === 0) return Promise.resolve([]);
+        return this.models.Contact.find({ email: { $in: patterns } }).lean<ContactDoc[]>();
     }
 
     findByIds(ids: Types.ObjectId[]): Promise<ContactDoc[]> {

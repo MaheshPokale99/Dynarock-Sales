@@ -71,7 +71,7 @@ describe("connecting the mailbox", () => {
     it("refuses any account other than the shared mailbox", async () => {
         gmail.profileEmail = "someone@gmail.com";
         const res = await connect(await admin());
-        assert.match(res.headers.get("location") ?? "", /mailbox=error&reason=.*someone%40gmail\.com/);
+        assert.match(res.headers.get("location") ?? "", /mailbox=error&reason=wrong_account$/);
         assert.deepEqual(gmail.revoked, ["refresh-1"]);
     });
 
@@ -219,6 +219,60 @@ describe("sending and receiving", () => {
         await client.post("/mailbox/sync");
         const res = await client.get("/recipients?q=meera");
         assert.deepEqual(res.body, [{ email: PRINCIPAL, name: "Dr. Meera Rao" }]);
+    });
+});
+
+describe("sending limits and safety", () => {
+    it("caps recipients per email and emails per day", async () => {
+        const { client } = await connectedTeam();
+        const many = (p: string) => Array.from({ length: 30 }, (_, i) => `${p}${i}@college.edu.in`);
+        const tooMany = await client.post("/emails/send", { to: many("a"), cc: many("b"), html: "<p>x</p>" });
+        assert.equal(tooMany.status, 422);
+        assert.match(tooMany.body.error.message, /at most 50/);
+
+        const limits = stack.container.config.limits;
+        const saved = { ...limits };
+        try {
+            limits.userDailySends = 1;
+            assert.equal((await client.post("/emails/send", { to: [PRINCIPAL], html: "<p>1</p>" })).status, 201);
+            const blocked = await client.post("/emails/send", { to: [PRINCIPAL], html: "<p>2</p>" });
+            assert.equal(blocked.status, 429);
+            assert.equal(blocked.body.error.code, "USER_DAILY_LIMIT");
+            limits.userDailySends = 100;
+            limits.mailboxDailySends = 1;
+            const shared = await client.post("/emails/send", { to: [PRINCIPAL], html: "<p>3</p>" });
+            assert.equal(shared.body.error.code, "MAILBOX_DAILY_LIMIT");
+        } finally {
+            Object.assign(limits, saved);
+        }
+    });
+
+    it("only lets the uploader (or an admin) use or download a file", async () => {
+        const { admin: a, client } = await connectedTeam();
+        const other = new Client(stack);
+        const inv = await a.post("/users/invite", { name: "Priya", email: "priya@dynarock.in", role: "sales_rep" });
+        await other.post("/auth/accept-invite", { token: tokenFrom(inv.body.inviteUrl), password: "rep-password-2" });
+
+        const file = await client.upload("quote.txt", "Private quote");
+        assert.equal((await other.get(`/files/${file.body.id}`)).status, 404);
+        assert.equal((await a.get(`/files/${file.body.id}`)).status, 200);
+        const stolen = await other.post("/emails/send", {
+            to: [PRINCIPAL],
+            html: "<p>x</p>",
+            attachmentFileIds: [file.body.id],
+        });
+        assert.equal(stolen.status, 404);
+        assert.equal(gmail.sent.length, 0);
+    });
+
+    it("treats mail that only claims to be from sales@ as inbound", async () => {
+        const { client } = await connectedTeam();
+        gmail.deliver({ from: `Sales <${gmail.address}>`, subject: "Reset your password", text: "Click here" });
+        await client.post("/mailbox/sync");
+        const message = await stack.container.database.models.Message.findOne({
+            subject: "Reset your password",
+        }).lean();
+        assert.equal(message?.direction, "inbound");
     });
 });
 

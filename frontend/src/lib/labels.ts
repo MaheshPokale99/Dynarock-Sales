@@ -4,6 +4,7 @@ import type {
     ContactStatus,
     Intent,
     KnowledgeCategory,
+    TemplateCategory,
     OrganizationType,
     Tone,
     UserRole,
@@ -129,3 +130,11 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 
 export const options = <T extends string>(labels: Record<T, string>) =>
     (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
+
+export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+    intro: "First email",
+    follow_up: "Follow-up",
+    demo: "Demo",
+    proposal: "Proposal",
+    other: "Other",
+};

@@ -1,6 +1,6 @@
 # Dynarock Sales: design
 
-Status: **draft for review** (2026-11-19). Nothing here is built yet.
+Status: **built** (phases 0–7, November 2026). See the README for what each phase delivered and docs/deployment.md for going live.
 
 Dynarock Sales is the internal tool the Dynarock sales team uses to email colleges and universities about the Dynarock campus platform from the shared `sales@dynarock.in` mailbox. It records every email sent and received, sends follow-ups automatically when a client goes quiet, uses Gemini to write and answer emails, and shows the team's growth.
 

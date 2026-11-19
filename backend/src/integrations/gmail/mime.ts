@@ -51,6 +51,23 @@ export interface ParsedMessage {
     sentAt: Date;
     attachments: ParsedAttachment[];
     isAutoReply: boolean;
+    authResult: AuthResult;
+}
+
+export type AuthResult = "pass" | "fail" | "unknown";
+
+// Gmail's own verdict on the sender (DMARC, else SPF/DKIM), from the header Gmail adds on receipt.
+export function parseAuthResult(value: string | undefined): AuthResult {
+    if (!value || !/^\s*mx\.google\.com\s*;/i.test(value)) return "unknown";
+    const result = (method: string) => new RegExp(`\\b${method}=(\\w+)`, "i").exec(value)?.[1]?.toLowerCase();
+    const dmarc = result("dmarc");
+    if (dmarc === "pass") return "pass";
+    if (dmarc === "fail") return "fail";
+    const spf = result("spf");
+    const dkim = result("dkim");
+    if (spf === "pass" || dkim === "pass") return "pass";
+    if (spf === "fail" || spf === "softfail" || dkim === "fail") return "fail";
+    return "unknown";
 }
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -181,5 +198,6 @@ export function parseGmailMessage(message: GmailMessage): ParsedMessage {
         isAutoReply:
             (Boolean(autoSubmitted) && autoSubmitted !== "no") ||
             Boolean(header(payload, "x-autoreply") ?? header(payload, "x-autorespond")),
+        authResult: parseAuthResult(header(payload, "authentication-results")),
     };
 }

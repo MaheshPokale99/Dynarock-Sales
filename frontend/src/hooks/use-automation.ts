@@ -68,6 +68,8 @@ export const useCancelScheduled = () => useAutomationMutation((id: string) => ap
 
 export const useSendScheduledNow = () => useAutomationMutation((id: string) => api.automation.sendNow(id));
 
+export const useApproveScheduled = () => useAutomationMutation((id: string) => api.automation.approve(id));
+
 export const useRegenerateScheduled = () => useAutomationMutation((id: string) => api.automation.regenerate(id));
 
 export const useUpdateAutomationSettings = () =>

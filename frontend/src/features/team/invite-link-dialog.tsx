@@ -57,7 +57,7 @@ export function InviteLinkDialog({ invitation, onClose }: { invitation: Invitati
                     </InputGroupAddon>
                 </InputGroup>
                 <p className="text-xs text-muted-foreground">
-                    Once the sales@dynarock.in mailbox is connected, invites will also be emailed automatically.
+                    Share it by WhatsApp, chat or your own email. The link only works for the address above.
                 </p>
                 <DialogFooter>
                     <DialogClose render={<Button />}>Done</DialogClose>

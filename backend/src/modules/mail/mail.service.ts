@@ -9,6 +9,7 @@ import type { Logger } from "../../common/logger/logger.js";
 import { GmailError } from "../../integrations/gmail/gmail.types.js";
 import { buildRawMessage, type OutgoingAttachment } from "../../integrations/gmail/mime.js";
 import type { ActivitiesRepository } from "../activities/activities.repository.js";
+import { startOfLocalDay } from "../automation/send-window.js";
 import type { ContactsService } from "../contacts/contacts.service.js";
 import type { ComposeMode } from "../drafts/draft.model.js";
 import type { DraftsRepository } from "../drafts/drafts.repository.js";
@@ -22,6 +23,8 @@ import type { MailSyncService } from "./mail-sync.service.js";
 
 const PAGE_SIZE = 30;
 const MAX_REFERENCES = 20;
+const MAX_RECIPIENTS = 50;
+const LIMIT_TIMEZONE = "Asia/Kolkata";
 
 export interface SendInput {
     mode: ComposeMode;
@@ -56,11 +59,17 @@ interface Deps {
     drafts: DraftsRepository;
     activities: ActivitiesRepository;
     contacts: Pick<ContactsService, "blockedRecipients" | "forThread">;
+    limits: { userDailySends: number; mailboxDailySends: number };
     logger: Logger;
+    now?: () => Date;
 }
 
 export class MailService {
-    constructor(private readonly deps: Deps) {}
+    private readonly now: () => Date;
+
+    constructor(private readonly deps: Deps) {
+        this.now = deps.now ?? (() => new Date());
+    }
 
     async list(query: Omit<ThreadQuery, "limit">) {
         const threads = await this.deps.mail.listThreads({ ...query, limit: PAGE_SIZE + 1 });
@@ -104,8 +113,12 @@ export class MailService {
 
     // options are for internal senders (follow-ups, scheduled emails), never from HTTP input.
     async send(user: User, input: SendInput, options: { origin?: MessageOrigin; listUnsubscribe?: string } = {}) {
-        const recipients = [...input.to, ...input.cc, ...input.bcc];
+        const recipients = [...new Set([...input.to, ...input.cc, ...input.bcc])];
         if (recipients.length === 0) throw new ValidationError("Add at least one recipient");
+        if (recipients.length > MAX_RECIPIENTS) {
+            throw new ValidationError(`One email can go to at most ${MAX_RECIPIENTS} people in total (To, Cc and Bcc)`);
+        }
+        await this.checkDailyLimits(user);
         const blocked = await this.deps.contacts.blockedRecipients(recipients);
         if (blocked.length > 0) {
             throw new ConflictError(
@@ -130,7 +143,7 @@ export class MailService {
             if (!base) throw new NotFoundError("The message you're replying to was not found");
         }
 
-        const attachments = await this.loadAttachments(input.attachmentFileIds);
+        const attachments = await this.loadAttachments(input.attachmentFileIds, user);
         const raw = await buildRawMessage({
             from: { email: doc.email, name: `${user.name} (Dynarock)` },
             to: input.to,
@@ -192,12 +205,33 @@ export class MailService {
         return thread;
     }
 
-    private async loadAttachments(ids: string[]): Promise<OutgoingAttachment[]> {
-        const files = await Promise.all(ids.map((id) => this.deps.files.read(id)));
-        if (files.reduce((sum, f) => sum + f.size, 0) > MAX_UPLOAD_BYTES) {
-            throw new ValidationError("Attachments can be at most 20 MB in total");
-        }
+    private async loadAttachments(ids: string[], user: User): Promise<OutgoingAttachment[]> {
+        if (ids.length === 0) return [];
+        const files = await this.deps.files.readForSending(ids, user, MAX_UPLOAD_BYTES);
         return files.map((f) => ({ filename: f.filename, contentType: f.mimeType, content: f.content }));
+    }
+
+    // Caps what one person, and the shared mailbox as a whole, can send per day (India time).
+    private async checkDailyLimits(user: User) {
+        const since = startOfLocalDay(this.now(), LIMIT_TIMEZONE);
+        const [mine, all] = await Promise.all([
+            this.deps.mail.countSentSince(since, user.id),
+            this.deps.mail.countSentSince(since),
+        ]);
+        if (all >= this.deps.limits.mailboxDailySends) {
+            throw new AppError(
+                "The shared mailbox has reached today's sending limit. It resets at midnight India time.",
+                429,
+                "MAILBOX_DAILY_LIMIT",
+            );
+        }
+        if (mine >= this.deps.limits.userDailySends) {
+            throw new AppError(
+                `You've sent ${mine} emails today, the daily limit. It resets at midnight India time.`,
+                429,
+                "USER_DAILY_LIMIT",
+            );
+        }
     }
 
     private async markReadInGmail(thread: ThreadDoc) {

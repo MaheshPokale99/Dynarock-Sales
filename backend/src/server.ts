@@ -26,6 +26,7 @@ if (linked > 0) logger.info({ threads: linked }, "Linked existing conversations 
 const seeded = await container.services.knowledge.seedIfEmpty();
 if (seeded > 0) logger.info({ entries: seeded }, "Loaded Dynarock product facts into the knowledge base");
 if (await container.services.automation.seedDefaults()) logger.info("Created the standard follow-up plan");
+if (await container.services.templates.seedIfEmpty()) logger.info("Added the starter email templates");
 
 if (await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin)) {
     logger.info({ admin: config.auth.bootstrapAdmin?.email }, "Created the first admin from BOOTSTRAP_ADMIN_EMAIL");

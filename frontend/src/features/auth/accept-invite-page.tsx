@@ -4,10 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { PasswordInput } from "@/components/common/password-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { HOME_PATH } from "@/config/navigation";
@@ -88,9 +88,8 @@ export function AcceptInvitePage() {
                     )}
                     <Field data-invalid={touched && tooShort}>
                         <FieldLabel htmlFor="password">Password</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             autoComplete="new-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -101,9 +100,8 @@ export function AcceptInvitePage() {
                     </Field>
                     <Field data-invalid={touched && mismatch}>
                         <FieldLabel htmlFor="confirm">Confirm password</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="confirm"
-                            type="password"
                             autoComplete="new-password"
                             value={confirm}
                             onChange={(e) => setConfirm(e.target.value)}

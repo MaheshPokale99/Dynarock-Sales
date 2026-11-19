@@ -17,6 +17,9 @@ export interface UserDoc {
     signatureHtml: string;
     invitedBy: Types.ObjectId | null;
     lastLoginAt: Date | null;
+    // Consecutive failed sign-ins, and the lock they caused.
+    loginFailures: number;
+    lockedUntil: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -31,6 +34,8 @@ export const userSchema = new Schema<UserDoc>(
         signatureHtml: { type: String, default: "" },
         invitedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
         lastLoginAt: { type: Date, default: null },
+        loginFailures: { type: Number, default: 0 },
+        lockedUntil: { type: Date, default: null },
     },
     { timestamps: true },
 );

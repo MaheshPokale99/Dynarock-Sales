@@ -14,6 +14,8 @@ import type { MailboxDoc } from "./mailbox.model.js";
 import type { MailboxRepository } from "./mailbox.repository.js";
 
 const STATE_TTL_MS = 10 * 60_000;
+
+export type CallbackReason = "access_denied" | "google_error" | "expired" | "not_admin" | "wrong_account";
 const RECONNECT_MESSAGE =
     "Google access for the mailbox was revoked or expired. An admin needs to reconnect it in Settings.";
 
@@ -77,17 +79,16 @@ export class MailboxService {
 
     // Google redirects here; returns the Settings page URL to send the browser to.
     async handleCallback(query: { code?: string; state?: string; error?: string }): Promise<string> {
-        const back = (result: string, reason?: string) =>
-            `${this.deps.config.appUrl}/settings?mailbox=${result}${reason ? `&reason=${encodeURIComponent(reason)}` : ""}`;
+        // Only fixed reason codes go back to the app; never text taken from the request.
+        const back = (result: "connected" | "error", reason?: CallbackReason) =>
+            `${this.deps.config.appUrl}/settings?mailbox=${result}${reason ? `&reason=${reason}` : ""}`;
 
-        if (query.error)
-            return back("error", query.error === "access_denied" ? "Access was not granted." : query.error);
+        if (query.error) return back("error", query.error === "access_denied" ? "access_denied" : "google_error");
         const state = query.state ? verifySigned<{ uid: string }>(query.state, this.key) : null;
-        if (!state || !query.code) return back("error", "The sign-in link expired. Please try again.");
+        if (!state || !query.code) return back("error", "expired");
 
         const admin = await this.deps.users.findById(state.uid);
-        if (admin?.role !== "admin" || admin.status !== "active")
-            return back("error", "Only an admin can connect the mailbox.");
+        if (admin?.role !== "admin" || admin.status !== "active") return back("error", "not_admin");
 
         try {
             const tokens = await this.deps.oauth.exchangeCode(query.code);
@@ -96,7 +97,7 @@ export class MailboxService {
             const expected = this.deps.config.mailboxAddress;
             if (profile.emailAddress.toLowerCase() !== expected) {
                 await this.deps.oauth.revoke(tokens.refreshToken);
-                return back("error", `You signed in as ${profile.emailAddress}. Please sign in as ${expected}.`);
+                return back("error", "wrong_account");
             }
             const doc = await this.deps.mailboxes.saveConnection({
                 email: expected,
@@ -117,7 +118,7 @@ export class MailboxService {
             return back("connected");
         } catch (error) {
             this.deps.logger.error({ err: error }, "Mailbox connection failed");
-            return back("error", "Google sign-in failed. Please try again.");
+            return back("error", "google_error");
         }
     }
 

@@ -18,8 +18,6 @@ export interface NavItem {
     label: string;
     icon: LucideIcon;
     adminOnly?: boolean;
-    // Shown in the menu but built in a later phase.
-    soon?: string;
 }
 
 export interface NavSection {
@@ -58,7 +56,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     {
         label: "Library",
         items: [
-            { href: "/templates", label: "Templates", icon: FileText, soon: "Saved emails you can reuse." },
+            { href: "/templates", label: "Templates", icon: FileText },
             {
                 href: "/knowledge",
                 label: "Knowledge",

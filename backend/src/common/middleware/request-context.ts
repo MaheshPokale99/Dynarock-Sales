@@ -6,6 +6,9 @@ import type { Logger } from "../logger/logger.js";
 
 const VALID_REQUEST_ID = /^[\w-]{8,64}$/;
 
+// Secret tokens in URLs (invite and unsubscribe links) never reach the logs.
+export const redactPath = (path: string) => path.replace(/^(\/api\/v1\/auth\/invites\/|\/u\/)[^/]+/, "$1[redacted]");
+
 /** Assigns a request id, exposes a request-scoped logger and logs one line per finished request. */
 export const requestContext = (logger: Logger) =>
     createMiddleware<AppEnv>(async (c, next) => {
@@ -23,7 +26,7 @@ export const requestContext = (logger: Logger) =>
         log.info(
             {
                 method: c.req.method,
-                path: c.req.path,
+                path: redactPath(c.req.path),
                 status: c.res.status,
                 durationMs: Math.round(performance.now() - started),
             },

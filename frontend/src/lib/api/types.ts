@@ -220,6 +220,8 @@ export interface ScheduledEmail {
     totalSteps: number | null;
     sequenceName: string | null;
     aiGenerated: boolean;
+    // Non-empty when an AI follow-up waits for someone to check and approve it.
+    heldReason: string;
     createdBy: string;
     lastEditedBy: string | null;
     updatedAt: string;
@@ -451,3 +453,18 @@ export interface Dashboard {
         aiRepliesApproved: number;
     }[];
 }
+
+export type TemplateCategory = "intro" | "follow_up" | "demo" | "proposal" | "other";
+
+export interface EmailTemplate {
+    id: string;
+    name: string;
+    category: TemplateCategory;
+    subject: string;
+    html: string;
+    usageCount: number;
+    createdBy: string | null;
+    updatedAt: string;
+}
+
+export type TemplateInput = Pick<EmailTemplate, "name" | "category" | "subject" | "html">;

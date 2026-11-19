@@ -8,6 +8,8 @@ export interface RateLimitOptions {
     windowMs: number;
     max: number;
     trustProxy?: boolean;
+    // Custom key (e.g. the signed-in user); falls back to the client address.
+    keyBy?: (c: Context<AppEnv>) => string | undefined;
 }
 
 interface Window {
@@ -15,9 +17,13 @@ interface Window {
     resetAt: number;
 }
 
+// Hard cap on tracked keys so a flood of distinct clients can't grow memory without limit.
+const MAX_KEYS = 50_000;
+
+// Behind a proxy, the last X-Forwarded-For entry is the one our own proxy added; earlier ones are client-supplied.
 export function clientAddress(c: Context<AppEnv>, trustProxy: boolean): string {
     if (trustProxy) {
-        const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+        const forwarded = c.req.header("x-forwarded-for")?.split(",").at(-1)?.trim();
         if (forwarded) return forwarded;
     }
     try {
@@ -27,21 +33,23 @@ export function clientAddress(c: Context<AppEnv>, trustProxy: boolean): string {
     }
 }
 
-/** Fixed-window, in-memory rate limiter keyed by client address; responds 429 with Retry-After when exceeded. */
-export function rateLimit({ windowMs, max, trustProxy = false }: RateLimitOptions) {
+/** Fixed-window, in-memory rate limiter; responds 429 with Retry-After when exceeded. */
+export function rateLimit({ windowMs, max, trustProxy = false, keyBy }: RateLimitOptions) {
     const windows = new Map<string, Window>();
 
-    setInterval(() => {
-        const now = Date.now();
+    const sweep = (now: number) => {
         for (const [key, w] of windows) if (w.resetAt <= now) windows.delete(key);
-    }, windowMs).unref();
+    };
+    setInterval(() => sweep(Date.now()), windowMs).unref();
 
     return createMiddleware<AppEnv>(async (c, next) => {
-        const key = clientAddress(c, trustProxy);
+        const key = keyBy?.(c) ?? clientAddress(c, trustProxy);
         const now = Date.now();
 
         let current = windows.get(key);
         if (!current || current.resetAt <= now) {
+            if (windows.size >= MAX_KEYS) sweep(now);
+            if (windows.size >= MAX_KEYS) windows.delete(windows.keys().next().value!);
             current = { count: 0, resetAt: now + windowMs };
             windows.set(key, current);
         }

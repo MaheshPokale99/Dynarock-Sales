@@ -21,6 +21,7 @@ import { AiAssist, type AiResult } from "./ai-assist";
 import { RecipientInput } from "./recipient-input";
 import { RichEditor } from "./rich-editor";
 import { FollowUpToggle, ScheduleMenu, type FollowUpChoice } from "./send-options";
+import { TemplatePicker } from "./template-picker";
 
 export interface ComposeInit {
     mode: ComposeMode;
@@ -91,13 +92,18 @@ export function ComposeForm({
     const sent = useRef(false);
 
     // AI text replaces the body; the signature stays underneath.
-    const applyAi = (result: AiResult) => {
+    // Replaces the body (keeping the signature) and fills an empty subject.
+    const applyBody = (bodyHtml: string, newSubject?: string) => {
         const { signature } = splitSignature(html);
-        const next = `${result.html}${signature}`;
+        const next = `${bodyHtml}${signature}`;
         editor?.commands.setContent(next, { emitUpdate: false });
         dirty.current = true;
         setHtml(next);
-        if (result.subject && !subject.trim()) setSubject(result.subject);
+        if (newSubject && !subject.trim()) setSubject(newSubject);
+    };
+
+    const applyAi = (result: AiResult) => {
+        applyBody(result.html, result.subject);
         setAiWarnings(result.warnings);
         if (result.warnings.length === 0) toast.success("AI draft ready. Read it before sending.");
     };
@@ -335,7 +341,7 @@ export function ComposeForm({
 
             {init.mode !== "forward" && <FollowUpToggle value={followUp} onChange={setFollowUp} plans={activePlans} />}
 
-            <div className="flex items-center gap-1 border-t px-2 py-2">
+            <div className="flex flex-wrap items-center gap-1 border-t px-2 py-2">
                 <div className="flex">
                     <Button
                         type="button"
@@ -371,6 +377,13 @@ export function ComposeForm({
                     </TooltipTrigger>
                     <TooltipContent>Attach files (20 MB total)</TooltipContent>
                 </Tooltip>
+                <TemplatePicker
+                    to={to}
+                    onPick={(t) => {
+                        applyBody(t.html, t.subject);
+                        toast.success("Template inserted");
+                    }}
+                />
                 <AiAssist
                     to={to}
                     threadId={init.threadId}

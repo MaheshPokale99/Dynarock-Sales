@@ -5,6 +5,7 @@ import { Mail, RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PasswordInput } from "@/components/common/password-input";
 import { PageHeader } from "@/components/common/page-header";
 import {
     AlertDialog,
@@ -29,6 +30,15 @@ import { api, ApiError, errorMessage, type User } from "@/lib/api";
 import { ROLE_LABELS } from "@/lib/labels";
 import { htmlToText, textToHtml } from "@/lib/signature";
 import { fullDate, timeAgo } from "@/lib/time";
+
+// The server only sends these codes back; the text lives here.
+const CONNECT_ERRORS: Record<string, string> = {
+    access_denied: "Google access wasn't granted. Try again and allow access.",
+    google_error: "Google couldn't complete the sign-in. Try again in a moment.",
+    expired: "The connect link expired. Start again from this page.",
+    not_admin: "Only an admin can connect the mailbox.",
+    wrong_account: "Sign in to Google with the shared sales mailbox, not a personal account.",
+};
 
 export function SettingsPage() {
     const { data: me } = useMe();
@@ -133,9 +143,8 @@ function PasswordCard() {
                     <FieldGroup className="sm:grid sm:grid-cols-2">
                         <Field data-invalid={Boolean(currentError)}>
                             <FieldLabel htmlFor="current-password">Current password</FieldLabel>
-                            <Input
+                            <PasswordInput
                                 id="current-password"
-                                type="password"
                                 autoComplete="current-password"
                                 value={current}
                                 onChange={(e) => setCurrent(e.target.value)}
@@ -145,9 +154,8 @@ function PasswordCard() {
                         </Field>
                         <Field>
                             <FieldLabel htmlFor="new-password">New password</FieldLabel>
-                            <Input
+                            <PasswordInput
                                 id="new-password"
-                                type="password"
                                 autoComplete="new-password"
                                 value={next}
                                 onChange={(e) => setNext(e.target.value)}
@@ -189,7 +197,7 @@ function MailboxCard() {
         const result = params.get("mailbox");
         if (!result) return;
         if (result === "connected") toast.success("Mailbox connected. New mail will appear in the Inbox.");
-        else toast.error(params.get("reason") ?? "Connecting the mailbox failed");
+        else toast.error(CONNECT_ERRORS[params.get("reason") ?? ""] ?? "Connecting the mailbox failed. Try again.");
         void qc.invalidateQueries({ queryKey: mailKeys.mailbox });
         router.replace("/settings", { scroll: false });
     }, [params, qc, router]);

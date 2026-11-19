@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PasswordInput } from "@/components/common/password-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -56,9 +57,8 @@ export function LoginPage() {
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="password">Password</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}

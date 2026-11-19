@@ -1,4 +1,5 @@
 import {
+    AppError,
     ConflictError,
     ForbiddenError,
     NotFoundError,
@@ -44,6 +45,8 @@ interface Deps {
 }
 
 const INVALID_LOGIN = "Email or password is incorrect";
+const MAX_LOGIN_FAILURES = 10;
+const LOCK_MS = 15 * 60_000;
 const INVALID_INVITE = "This invitation link is invalid or has expired. Ask an admin to send a new one.";
 
 export class AuthService {
@@ -55,9 +58,21 @@ export class AuthService {
 
     async login(email: string, password: string, meta: ClientMeta): Promise<IssuedSession> {
         const user = await this.deps.users.findByEmail(email);
+        const now = this.now();
+        if (user?.lockedUntil && user.lockedUntil > now) {
+            const minutes = Math.ceil((user.lockedUntil.getTime() - now.getTime()) / 60_000);
+            throw new AppError(
+                `Too many failed sign-ins. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+                429,
+                "ACCOUNT_LOCKED",
+            );
+        }
         const valid = user?.passwordHash
             ? await verifyPassword(user.passwordHash, password)
             : await burnPasswordCheck(password);
+        if (user && !valid) {
+            await this.deps.users.recordFailedLogin(user.id, MAX_LOGIN_FAILURES, new Date(now.getTime() + LOCK_MS));
+        }
         if (!user || !valid) throw new UnauthorizedError(INVALID_LOGIN);
         if (user.status === "disabled")
             throw new ForbiddenError("This account is disabled. Ask an admin to enable it.");

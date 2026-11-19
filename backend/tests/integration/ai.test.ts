@@ -176,6 +176,46 @@ describe("client replies", () => {
         assert.equal(blocked.status, 409);
     });
 
+    it("ignores an unsubscribe request that failed Gmail's sender check", async () => {
+        const c = await connectedAdmin();
+        ai.answers.classify = { ...(ai.answers.classify as object), intent: "unsubscribe", summary: "Stop." };
+        await c.post("/emails/send", { to: ["principal@xyz.edu.in"], subject: "Dynarock", html: "<p>Hello</p>" });
+        const ours = [...gmail.messages.values()][0]!;
+        gmail.deliver({
+            from: "principal@xyz.edu.in",
+            subject: "Re: Dynarock",
+            text: "Unsubscribe me",
+            threadId: ours.threadId,
+            headers: { "Authentication-Results": "mx.google.com; spf=fail smtp.mailfrom=xyz.edu.in; dmarc=fail" },
+        });
+        await c.post("/mailbox/sync");
+        await stack.container.services.ai.idle();
+        assert.equal((await c.get("/contacts?q=principal")).body.items[0].status, "active");
+    });
+
+    it("doesn't spend AI on strangers' cold emails", async () => {
+        const c = await connectedAdmin();
+        gmail.deliver({ from: "stranger@spam.example", subject: "Offer", text: "Buy now" });
+        await c.post("/mailbox/sync");
+        await stack.container.services.ai.idle();
+        assert.equal(ai.calls.length, 0);
+    });
+
+    it("stops at the daily AI allowance", async () => {
+        const c = await connectedAdmin();
+        const limits = stack.container.config.limits;
+        const saved = limits.aiDailyCalls;
+        try {
+            limits.aiDailyCalls = 1;
+            assert.equal((await c.post("/ai/compose", { instruction: "Intro" })).status, 200);
+            const blocked = await c.post("/ai/compose", { instruction: "Intro" });
+            assert.equal(blocked.status, 429);
+            assert.equal(blocked.body.error.code, "AI_DAILY_LIMIT");
+        } finally {
+            limits.aiDailyCalls = saved;
+        }
+    });
+
     it("lets a person reject a draft or ask for a fresh one", async () => {
         const c = await connectedAdmin();
         const threadId = await clientReplies(c, "Interesting, tell me more.");

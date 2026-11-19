@@ -135,6 +135,8 @@ export interface ScheduledEmailDoc {
     enrollmentId: Types.ObjectId | null;
     step: number | null;
     aiGenerated: boolean;
+    // Set when an AI follow-up has unchecked facts; it waits until someone approves it.
+    heldReason: string;
     createdBy: Types.ObjectId;
     lastEditedBy: Types.ObjectId | null;
     sentMessageId: Types.ObjectId | null;
@@ -161,6 +163,7 @@ export const scheduledEmailSchema = new Schema<ScheduledEmailDoc>(
         enrollmentId: { type: Schema.Types.ObjectId, default: null },
         step: { type: Number, default: null },
         aiGenerated: { type: Boolean, default: false },
+        heldReason: { type: String, default: "" },
         createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
         lastEditedBy: { type: Schema.Types.ObjectId, default: null },
         sentMessageId: { type: Schema.Types.ObjectId, default: null },

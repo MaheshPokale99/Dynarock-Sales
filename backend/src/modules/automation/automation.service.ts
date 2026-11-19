@@ -3,6 +3,7 @@ import { MS_PER_DAY, MS_PER_MINUTE } from "../../common/constants.js";
 import {
     AppError,
     ConflictError,
+    ForbiddenError,
     NotFoundError,
     ServiceUnavailableError,
     ValidationError,
@@ -308,6 +309,7 @@ export class AutomationService {
             subject: thread.subject.toLowerCase().startsWith("re:") ? thread.subject : `Re: ${thread.subject}`,
             html: content.html,
             aiGenerated: content.ai,
+            heldReason: holdReason(content.warnings),
             sendAt,
             enrollmentId: enrollment._id,
             step: enrollment.currentStep + 1,
@@ -321,17 +323,17 @@ export class AutomationService {
         step: number,
         total: number,
         def: SequenceStep,
-    ): Promise<{ html: string; ai: boolean }> {
-        if (def.fixedText.trim()) return { html: textToEmailHtml(def.fixedText), ai: false };
+    ): Promise<{ html: string; ai: boolean; warnings: string[] }> {
+        if (def.fixedText.trim()) return { html: textToEmailHtml(def.fixedText), ai: false, warnings: [] };
         if (this.deps.ai.enabled) {
             try {
                 const out = await this.deps.ai.writeFollowUp(thread._id.toHexString(), step, total, def.instruction);
-                return { html: out.html, ai: true };
+                return { html: out.html, ai: true, warnings: out.warnings };
             } catch (error) {
                 this.deps.logger.warn({ err: error }, "AI follow-up failed; using the standard text");
             }
         }
-        return { html: textToEmailHtml(FALLBACK_TEXT), ai: false };
+        return { html: textToEmailHtml(FALLBACK_TEXT), ai: false, warnings: [] };
     }
 
     async stopForThread(threadId: Types.ObjectId, reason: StopReason, actorId: string | null) {
@@ -435,25 +437,47 @@ export class AutomationService {
         return { today, upcoming, sentToday, dailyCap: settings.dailySendCap, paused: settings.automationPaused };
     }
 
+    // Saving new text counts as reviewing it, so a held follow-up is released.
     async editScheduled(
-        userId: string,
+        user: User,
         id: string,
         patch: { subject?: string; html?: string; to?: string[]; cc?: string[]; sendAt?: Date },
     ) {
         if (patch.sendAt && patch.sendAt.getTime() < this.now().getTime())
             throw new ValidationError("Pick a time in the future");
+        await this.requireOwnScheduled(user, id);
         const doc = await this.deps.models.ScheduledEmail.findOneAndUpdate(
             { _id: id, status: "scheduled" },
-            { $set: { ...patch, lastEditedBy: new Types.ObjectId(userId) } },
+            {
+                $set: {
+                    ...patch,
+                    ...(patch.html !== undefined ? { heldReason: "" } : {}),
+                    lastEditedBy: new Types.ObjectId(user.id),
+                },
+            },
             { returnDocument: "after" },
         ).lean<ScheduledEmailDoc>();
         if (!doc) throw new ConflictError("This email isn't scheduled any more.");
-        if (doc.threadId) await this.record("followup.edited", userId, doc.threadId, { step: doc.step });
+        await this.recordScheduled("followup.edited", user.id, doc, { fields: Object.keys(patch) });
+        return (await this.scheduledDtos([doc]))[0]!;
+    }
+
+    async approveScheduled(user: User, id: string) {
+        await this.requireOwnScheduled(user, id);
+        const doc = await this.deps.models.ScheduledEmail.findOneAndUpdate(
+            { _id: id, status: "scheduled" },
+            { $set: { heldReason: "", lastEditedBy: new Types.ObjectId(user.id) } },
+            { returnDocument: "after" },
+        ).lean<ScheduledEmailDoc>();
+        if (!doc) throw new ConflictError("This email isn't scheduled any more.");
+        await this.recordScheduled("followup.approved", user.id, doc, {});
         return (await this.scheduledDtos([doc]))[0]!;
     }
 
     // Cancelling a follow-up stops the plan for that conversation; a "send later" email is just dropped.
-    async cancelScheduled(userId: string, id: string) {
+    async cancelScheduled(user: User, id: string) {
+        await this.requireOwnScheduled(user, id);
+        const userId = user.id;
         const doc = await this.deps.models.ScheduledEmail.findOneAndUpdate(
             { _id: id, status: "scheduled" },
             {
@@ -467,23 +491,30 @@ export class AutomationService {
         ).lean<ScheduledEmailDoc>();
         if (!doc) throw new ConflictError("This email isn't scheduled any more.");
         if (doc.kind === "follow_up" && doc.threadId) await this.stopForThread(doc.threadId, "manual", userId);
-        else if (doc.threadId) await this.record("followup.cancelled", userId, doc.threadId, {});
+        else await this.recordScheduled("followup.cancelled", userId, doc, {});
     }
 
-    async sendNow(id: string) {
-        const claimed = await this.claim(new Types.ObjectId(id));
+    // Admins can push anything out; others only their own, and follow-ups still respect the pause and daily cap.
+    async sendNow(user: User, id: string) {
+        const item = await this.requireOwnScheduled(user, id);
+        if (item.kind === "follow_up" && user.role !== "admin") {
+            const settings = await this.settingsDoc();
+            if (settings.automationPaused) throw new ConflictError("Follow-ups are paused by an admin.");
+            if ((await this.sentToday(settings)) >= settings.dailySendCap)
+                throw new AppError("Today's follow-up limit has been reached.", 429, "FOLLOWUP_DAILY_CAP");
+        }
+        const claimed = await this.claim(item._id);
         if (!claimed) throw new ConflictError("This email isn't scheduled any more.");
+        await this.recordScheduled("followup.sent_now", user.id, claimed, {});
         await this.deliver(claimed, true);
         const doc = await this.deps.models.ScheduledEmail.findById(id).lean<ScheduledEmailDoc>();
         if (doc?.status !== "sent") throw new ConflictError(doc?.statusReason || "Sending failed. Try again shortly.");
         return (await this.scheduledDtos([doc]))[0]!;
     }
 
-    async regenerate(id: string) {
-        const doc = Types.ObjectId.isValid(id)
-            ? await this.deps.models.ScheduledEmail.findById(id).lean<ScheduledEmailDoc>()
-            : null;
-        if (doc?.status !== "scheduled" || doc.kind !== "follow_up" || !doc.enrollmentId || !doc.threadId) {
+    async regenerate(user: User, id: string) {
+        const doc = await this.requireOwnScheduled(user, id);
+        if (doc.status !== "scheduled" || doc.kind !== "follow_up" || !doc.enrollmentId || !doc.threadId) {
             throw new ConflictError("Only scheduled follow-ups can be rewritten.");
         }
         if (!this.deps.ai.enabled)
@@ -501,9 +532,17 @@ export class AutomationService {
         );
         const updated = await this.deps.models.ScheduledEmail.findOneAndUpdate(
             { _id: doc._id, status: "scheduled" },
-            { $set: { html: out.html, aiGenerated: true } },
+            {
+                $set: {
+                    html: out.html,
+                    aiGenerated: true,
+                    heldReason: holdReason(out.warnings),
+                    lastEditedBy: new Types.ObjectId(user.id),
+                },
+            },
             { returnDocument: "after" },
         ).lean<ScheduledEmailDoc>();
+        if (updated) await this.recordScheduled("followup.edited", user.id, updated, { regenerated: true });
         return { ...(await this.scheduledDtos([updated ?? doc]))[0]!, warnings: out.warnings };
     }
 
@@ -541,6 +580,7 @@ export class AutomationService {
             (await this.deps.locks.withLock(LOCK, 5 * MS_PER_MINUTE, async () => {
                 const due = await this.deps.models.ScheduledEmail.find({
                     status: "scheduled",
+                    heldReason: { $in: ["", null] },
                     sendAt: { $lte: this.now() },
                 })
                     .sort({ sendAt: 1 })
@@ -770,6 +810,7 @@ export class AutomationService {
                 totalSteps: seq?.steps.length ?? null,
                 sequenceName: seq?.name ?? null,
                 aiGenerated: d.aiGenerated,
+                heldReason: d.heldReason ?? "",
                 createdBy: d.createdBy.toHexString(),
                 lastEditedBy: d.lastEditedBy?.toHexString() ?? null,
                 updatedAt: d.updatedAt,
@@ -783,18 +824,47 @@ export class AutomationService {
         return thread;
     }
 
+    // Only the person who scheduled it, or an admin, may change it.
+    private async requireOwnScheduled(user: User, id: string): Promise<ScheduledEmailDoc> {
+        const doc = Types.ObjectId.isValid(id)
+            ? await this.deps.models.ScheduledEmail.findById(id).lean<ScheduledEmailDoc>()
+            : null;
+        if (!doc) throw new NotFoundError("Scheduled email not found");
+        if (user.role !== "admin" && doc.createdBy.toHexString() !== user.id) {
+            throw new ForbiddenError("Only the person who scheduled this email, or an admin, can change it.");
+        }
+        return doc;
+    }
+
     private record(
         action: ActivityAction,
         actorId: string | null,
-        threadId: Types.ObjectId,
+        threadId: Types.ObjectId | null,
         meta: Record<string, unknown>,
+        entity?: { type: string; id: string },
     ) {
         return this.deps.activities.record({
             actor: actorId ? { type: "user", userId: actorId } : { type: "system" },
             action,
-            threadId: threadId.toHexString(),
+            threadId: threadId?.toHexString(),
+            entity,
             meta,
         });
+    }
+
+    private recordScheduled(
+        action: ActivityAction,
+        actorId: string,
+        doc: ScheduledEmailDoc,
+        meta: Record<string, unknown>,
+    ) {
+        return this.record(
+            action,
+            actorId,
+            doc.threadId,
+            { kind: doc.kind, step: doc.step, ...meta },
+            { type: "scheduled_email", id: doc._id.toHexString() },
+        );
     }
 }
 
@@ -805,6 +875,9 @@ const STOP_TEXT: Record<StopReason, string> = {
     manual: "Stopped by a team member",
     failed: "Sending kept failing",
 };
+
+const holdReason = (warnings: string[]) =>
+    warnings.length ? `Check before it sends: ${warnings.join(" ")}`.slice(0, 1000) : "";
 
 const footer = (url: string) =>
     `<p style="margin-top:24px;font-size:12px;color:#888">If you’d rather not hear from us, <a href="${url}">unsubscribe here</a>.</p>`;

@@ -18,7 +18,8 @@ export class FilesController {
         return c.json(await this.files.upload(currentAuth(c).user.id, file), 201);
     };
 
-    download = async (c: Context<AppEnv>) => download(c, await this.files.read(parseParams(c, idParams).id));
+    download = async (c: Context<AppEnv>) =>
+        download(c, await this.files.read(parseParams(c, idParams).id, currentAuth(c).user));
 }
 
 export const createFilesRoutes = (controller: FilesController) =>

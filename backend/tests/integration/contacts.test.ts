@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { FakeGmail } from "../helpers/fake-gmail.js";
-import { Client } from "../helpers/http.js";
+import { Client, tokenFrom } from "../helpers/http.js";
 import { ADMIN, createTestStack, type TestStack } from "../helpers/test-stack.js";
 
 const ENV = {
@@ -160,6 +160,20 @@ describe("managing contacts", () => {
         assert.equal(res.status, 409);
         assert.match(res.body.error.details.reasons[0], /do not contact/);
         assert.equal(gmail.sent.length, 0);
+    });
+
+    it("blocks +tag variants of a blocked address, and only admins can make them emailable again", async () => {
+        const c = await connectedAdmin();
+        const created = await c.post("/contacts", { email: "dean@college.edu.in" });
+        await c.patch(`/contacts/${created.body.id}`, { status: "unsubscribed" });
+        assert.equal((await send(c, "Dean+news@college.edu.in")).status, 409);
+
+        const inv = await c.post("/users/invite", { name: "Rep", email: "rep@dynarock.in", role: "sales_rep" });
+        const rep = new Client(stack);
+        await rep.post("/auth/accept-invite", { token: tokenFrom(inv.body.inviteUrl), password: "rep-password-1" });
+        assert.equal((await rep.patch(`/contacts/${created.body.id}`, { status: "active" })).status, 403);
+        assert.equal((await rep.patch(`/contacts/${created.body.id}`, { notes: "Asked to stop" })).status, 200);
+        assert.equal((await c.patch(`/contacts/${created.body.id}`, { status: "active" })).status, 200);
     });
 
     it("groups contacts by stage for the pipeline and filters the list", async () => {

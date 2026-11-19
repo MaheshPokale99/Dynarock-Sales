@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Pencil, Send, Sparkles, X } from "lucide-react";
+import { CalendarClock, Check, Pencil, Send, ShieldAlert, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,9 +14,11 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCancelScheduled, useSendScheduledNow } from "@/hooks/use-automation";
+import { useMe } from "@/hooks/use-auth";
+import { useApproveScheduled, useCancelScheduled, useSendScheduledNow } from "@/hooks/use-automation";
 import { errorMessage, type ScheduledEmail } from "@/lib/api";
 import { whenLabel } from "@/lib/datetime";
 import { displayName } from "@/lib/mail-format";
@@ -36,7 +38,12 @@ export function ScheduledItem({ item, showThread = true }: { item: ScheduledEmai
     const [confirmCancel, setConfirmCancel] = useState(false);
     const sendNow = useSendScheduledNow();
     const cancel = useCancelScheduled();
+    const approve = useApproveScheduled();
+    const { data: me } = useMe();
     const pending = item.status === "scheduled";
+    // Only the person who scheduled it, or an admin, can change it.
+    const canManage = me?.role === "admin" || me?.id === item.createdBy;
+    const held = pending && Boolean(item.heldReason);
     const who = item.thread?.participants.map(displayName).join(", ") || item.to.join(", ");
 
     return (
@@ -53,6 +60,12 @@ export function ScheduledItem({ item, showThread = true }: { item: ScheduledEmai
                     <Badge variant="secondary" className="gap-1">
                         <Sparkles className="size-3" aria-hidden />
                         AI
+                    </Badge>
+                )}
+                {held && (
+                    <Badge variant="destructive" className="gap-1">
+                        <ShieldAlert className="size-3" aria-hidden />
+                        Needs review
                     </Badge>
                 )}
                 {item.lastEditedBy && pending && <Badge variant="secondary">Edited</Badge>}
@@ -77,8 +90,30 @@ export function ScheduledItem({ item, showThread = true }: { item: ScheduledEmai
             </div>
             <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{plain(item.html)}</p>
             {item.statusReason && <p className="mt-1 text-xs text-muted-foreground">{item.statusReason}</p>}
-            {pending && (
+            {held && (
+                <Alert variant="destructive" className="mt-3">
+                    <ShieldAlert aria-hidden />
+                    <AlertTitle>Waiting for a person to check it</AlertTitle>
+                    <AlertDescription>{item.heldReason}</AlertDescription>
+                </Alert>
+            )}
+            {pending && canManage && (
                 <div className="mt-3 flex flex-wrap gap-2">
+                    {held && (
+                        <Button
+                            size="sm"
+                            disabled={approve.isPending}
+                            onClick={() =>
+                                approve.mutate(item.id, {
+                                    onSuccess: () => toast.success("Approved. It will send on schedule."),
+                                    onError: (e) => toast.error(errorMessage(e)),
+                                })
+                            }
+                        >
+                            <Check data-icon="inline-start" />
+                            Approve
+                        </Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                         <Pencil data-icon="inline-start" />
                         Edit

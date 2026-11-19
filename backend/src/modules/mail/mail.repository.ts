@@ -139,6 +139,15 @@ export class MailRepository {
         }).lean<ThreadDoc[]>();
     }
 
+    // Emails the app sent since `since`, for one person or for the whole mailbox.
+    countSentSince(since: Date, userId?: string): Promise<number> {
+        return this.models.Message.countDocuments({
+            direction: "outbound",
+            sentByUserId: userId ? new Types.ObjectId(userId) : { $ne: null },
+            sentAt: { $gte: since },
+        });
+    }
+
     async counts(): Promise<Record<"needs_reply" | "unread", number>> {
         const [needsReply, unread] = await Promise.all([
             this.models.Thread.countDocuments({ state: "needs_reply" }),

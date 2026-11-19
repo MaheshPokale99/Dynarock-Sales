@@ -2,7 +2,7 @@
 
 The Dynarock sales team's internal tool for emailing colleges and universities from the shared `sales@dynarock.in` mailbox. It tracks every email sent and received, sends follow-ups automatically when a client goes quiet, uses Gemini to write and answer emails, and shows the team's growth.
 
-The full design (MongoDB collections, API, screens, build plan) is in [docs/dynarock-sales-design.md](docs/dynarock-sales-design.md). Connecting the real mailbox: [docs/gmail-setup.md](docs/gmail-setup.md).
+The full design (MongoDB collections, API, screens, build plan) is in [docs/dynarock-sales-design.md](docs/dynarock-sales-design.md). Connecting the real mailbox: [docs/gmail-setup.md](docs/gmail-setup.md). Going live on `sales.dynarock.in`: [docs/deployment.md](docs/deployment.md).
 
 > The previous project (NIAT Admission Drop-Off Detective) is kept at the git tag `v1-admission-detective`.
 
@@ -17,7 +17,7 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 4 | AI (Gemini): AI Write and Rewrite in Compose, reply labels and summaries, suggested replies in Approvals, Knowledge base | Done |
 | 5 | Automatic follow-ups (plans, AI-written steps, send window, daily limit, pause), schedule send, unsubscribe | Done |
 | 6 | Analytics dashboard: KPIs vs previous period, activity over time, pipeline, follow-up results, reply labels, AI drafts, team table | Done |
-| 7 | Templates, polish, deployment | Next |
+| 7 | Templates with fill-in fields, mobile and clean-up polish, production build check, deployment guide | Done |
 
 ## Stack
 
@@ -55,7 +55,7 @@ npm run dev                      # http://localhost:3000
 
 On first start the API creates the first admin from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`. Sign in with it, change the password in **Settings**, then add the sales team from **Team → Invite member**. Each invite gives a one-time link (valid 7 days) for that person to choose their password.
 
-Everything in Docker: `docker compose --profile app up --build`.
+Everything in Docker: `MONGO_ROOT_PASSWORD=... BOOTSTRAP_ADMIN_PASSWORD=... docker compose --profile app up --build`. Compose refuses to start without both; MongoDB requires a login and listens only on 127.0.0.1, and the admin password must be at least 16 characters.
 
 ### Try the Inbox without Google setup
 
@@ -101,7 +101,9 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | `AI_RATE_LIMIT_PER_MINUTE` | `20` | Per-IP limit on AI endpoints |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | none / `gemini-3.1-flash-lite` | AI features (from phase 4) |
 | `RATE_LIMIT_PER_MINUTE` / `AUTH_RATE_LIMIT_PER_MINUTE` | `300` / `10` | Per-IP limits; the second protects sign-in and invites |
-| `TRUST_PROXY` | `false` | Read the client IP from `X-Forwarded-For` behind a proxy |
+| `TRUST_PROXY` | `false` | Read the client IP from `X-Forwarded-For` behind a proxy (the last entry, added by your proxy) |
+| `USER_DAILY_SEND_LIMIT` / `MAILBOX_DAILY_SEND_LIMIT` | `200` / `1500` | Emails one person, and the whole mailbox, can send per day (India time) |
+| `AI_DAILY_CALL_LIMIT` | `1500` | AI calls per day for the whole team |
 
 ## API so far (`/api/v1`)
 
@@ -143,18 +145,20 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | POST / GET | `/threads/:id/enroll` · `/threads/:id/automation` | signed in | Start follow-ups on a conversation; its plan and scheduled emails |
 | POST | `/enrollments/:id/stop` · `/pause` · `/resume` | signed in | Control a running plan |
 | GET | `/scheduled-emails?status=&kind=&threadId=` · `/scheduled-emails/counts` | signed in | Scheduled, sent and stopped emails |
-| PATCH / POST | `/scheduled-emails/:id` · `/cancel` · `/send-now` · `/regenerate` | signed in | Edit, cancel, send now, rewrite with AI |
+| PATCH / POST | `/scheduled-emails/:id` · `/cancel` · `/send-now` · `/regenerate` · `/approve` | scheduler or admin | Edit, cancel, send now, rewrite with AI, approve a held AI follow-up |
 | GET / POST | `/u/:token` (outside `/api`) | public | Unsubscribe page and one-click unsubscribe |
 | GET | `/analytics/dashboard?days=7\|30\|90` | signed in | Everything the dashboard shows, with the previous period for comparison |
+| GET / POST / PATCH / DELETE | `/templates` | signed in (edit: own or admin) | Saved emails |
+| POST | `/templates/:id/render` | signed in | Template filled in for the first recipient (`{{contact.firstName}}`, `{{organization.name}}`, `{{sender.name}}` …) |
 | GET | `/health` · `/healthz` · `/readyz` | — | Status and probes |
 
 How contacts work: every email sent or received creates the contact if needed and links them to the college with the same email domain (never for gmail.com and other personal providers). Stages move forward on their own, New → Contacted when we email, → Replied when they answer, and never backwards. Unsubscribed, bounced and do-not-contact people can't be emailed.
 
-How follow-ups work: tick **Follow up if no reply** in Compose (on by default for new emails) or start a plan from any conversation. The standard plan sends three follow-ups (about day 3, 7 and 14). Each one is written by the AI as soon as the previous email goes out, so it shows as **Scheduled** in the conversation and on the Follow-ups page, where anyone can edit it, send it now or cancel it. A client reply (not an auto-reply) or an unsubscribe stops the plan; a manual reply pushes the next follow-up back. Automatic emails only go out inside the send window (default Mon–Sat 9:00–18:00 IST), never above the daily limit, and not at all while automation is paused. Every automatic email carries an unsubscribe link and one-click unsubscribe headers.
+How follow-ups work: tick **Follow up if no reply** in Compose (on by default for new emails) or start a plan from any conversation. The standard plan sends three follow-ups (about day 3, 7 and 14). Each one is written by the AI as soon as the previous email goes out, so it shows as **Scheduled** in the conversation and on the Follow-ups page, where the person who scheduled it (or an admin) can edit it, send it now or cancel it. An AI follow-up with a figure or link that isn't in the knowledge base is marked **Needs review** and doesn't send until someone edits or approves it. A client reply (not an auto-reply) or an unsubscribe stops the plan; a manual reply pushes the next follow-up back. Automatic emails only go out inside the send window (default Mon–Sat 9:00–18:00 IST), never above the daily limit, and not at all while automation is paused. Every automatic email carries an unsubscribe link and one-click unsubscribe headers.
 
-How the AI works: every new client email is labelled (interested, wants a demo, question, pricing, objection, not now, not interested, out of office, unsubscribe) with a one-line summary. For emails that need an answer, Gemini drafts a reply that waits in **Approvals**; nothing is sent until a person edits and approves it. Unsubscribe requests mark the contact unsubscribed. The AI only uses facts from the **Knowledge** page (seeded from dynarock.in); any figure or link it writes that isn't in the knowledge base or the conversation is flagged for review. Client emails are passed to the model as data, never as instructions.
+How the AI works: every new client email is labelled (interested, wants a demo, question, pricing, objection, not now, not interested, out of office, unsubscribe) with a one-line summary. For emails that need an answer, Gemini drafts a reply that waits in **Approvals**; nothing is sent until a person edits and approves it. Unsubscribe requests mark the contact unsubscribed, unless Gmail says the sender failed its authentication check. To protect the AI budget, emails from strangers (conversations we never wrote in) aren't processed automatically, and each sender gets at most 5 automatic runs a day. The AI only uses facts from the **Knowledge** page (seeded from dynarock.in); any figure or link it writes that isn't in the knowledge base or the conversation is flagged for review. Client emails are passed to the model as data, never as instructions.
 
-Safety rules built in: only hashes of session and invite tokens are stored; a disabled user is signed out everywhere; nobody can change their own role or disable themselves; the team always keeps at least one active admin; cross-site form posts are rejected.
+Safety rules built in: only hashes of session and invite tokens are stored; a disabled user is signed out everywhere; nobody can change their own role or disable themselves; the team always keeps at least one active admin; cross-site form posts are rejected; 10 wrong passwords lock an account for 15 minutes; each person can only use files they uploaded (200 MB each); one email goes to at most 50 people; only admins can make an unsubscribed or bounced contact emailable again; mail only counts as ours if Gmail marked it SENT, not because of its From header.
 
 ## Project structure
 
@@ -165,14 +169,14 @@ backend/src/
   database/                            Mongoose connection and model registry
   common/                              errors, http helpers, logger, middleware, utils
   modules/<name>/                      model, repository, service, controller, routes, schema
-    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  automation/  analytics/  system/
+    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  templates/  ai/  automation/  analytics/  system/
   integrations/gmail/                  OAuth, REST client, MIME build/parse
   integrations/gemini/                 Gemini client (JSON output)
   workers/                             Gmail sync and the follow-up sender
 frontend/src/
   app/(auth)/                          login, accept-invite
   app/(app)/                           signed-in pages inside the sidebar shell
-  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge, followups, dashboard
+  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge, followups, dashboard, templates
   components/ui/                       shadcn components
   hooks/  lib/api/  config/
 ```

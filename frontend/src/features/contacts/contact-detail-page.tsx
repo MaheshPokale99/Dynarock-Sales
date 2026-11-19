@@ -10,12 +10,13 @@ import { UserAvatar } from "@/components/common/user-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useMe } from "@/hooks/use-auth";
 import { useContact, useUpdateContact } from "@/hooks/use-contacts";
 import { useTeam } from "@/hooks/use-team";
 import { errorMessage, type Contact, type ContactInput, type ContactRole, type ContactStatus } from "@/lib/api";
@@ -157,6 +158,9 @@ function DetailsForm({
     const [role, setRole] = useState<ContactRole>(contact.role);
     const [status, setStatus] = useState<ContactStatus>(contact.status);
     const [org, setOrg] = useState(contact.organizationId);
+    const { data: me } = useMe();
+    // Only admins can make an opted-out or bounced contact emailable again.
+    const statusLocked = contact.status !== "active" && me?.role !== "admin";
     const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -223,6 +227,7 @@ function DetailsForm({
                                 value={status}
                                 onValueChange={(v) => setStatus(v as ContactStatus)}
                                 items={options(CONTACT_STATUS_LABELS)}
+                                disabled={statusLocked}
                             >
                                 <SelectTrigger id="d-status" className="w-full">
                                     <SelectValue />
@@ -235,6 +240,7 @@ function DetailsForm({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {statusLocked && <FieldDescription>Only an admin can change this.</FieldDescription>}
                         </Field>
                         <Field className="sm:col-span-2">
                             <FieldLabel htmlFor="d-tags">Tags</FieldLabel>
