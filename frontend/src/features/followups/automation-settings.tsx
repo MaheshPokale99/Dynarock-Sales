@@ -31,16 +31,26 @@ function SettingsForm({ initial }: { initial: AutomationSettings }) {
             {
                 automationPaused: paused,
                 dailySendCap: Math.max(1, Number(cap) || 1),
-                sendWindow: { ...initial.sendWindow, days: days.map(Number).sort(), startHour: Number(start), endHour: Number(end) },
+                sendWindow: {
+                    ...initial.sendWindow,
+                    days: days.map(Number).sort(),
+                    startHour: Number(start),
+                    endHour: Number(end),
+                },
             },
-            { onSuccess: () => toast.success("Automation settings saved"), onError: (e) => toast.error(errorMessage(e)) },
+            {
+                onSuccess: () => toast.success("Automation settings saved"),
+                onError: (e) => toast.error(errorMessage(e)),
+            },
         );
 
     return (
         <Card className="max-w-2xl">
             <CardHeader>
                 <CardTitle>Automation</CardTitle>
-                <CardDescription>Applies to automatic follow-ups. Emails you send yourself always go out right away.</CardDescription>
+                <CardDescription>
+                    Applies to automatic follow-ups. Emails you send yourself always go out right away.
+                </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
                 <FieldGroup>
@@ -48,12 +58,21 @@ function SettingsForm({ initial }: { initial: AutomationSettings }) {
                         <Switch id="a-paused" checked={paused} onCheckedChange={setPaused} />
                         <div>
                             <FieldLabel htmlFor="a-paused">Pause all automatic follow-ups</FieldLabel>
-                            <FieldDescription>Nothing automatic is sent until you turn this off. Plans resume where they left off.</FieldDescription>
+                            <FieldDescription>
+                                Nothing automatic is sent until you turn this off. Plans resume where they left off.
+                            </FieldDescription>
                         </div>
                     </Field>
                     <Field>
                         <FieldLabel>Send on</FieldLabel>
-                        <ToggleGroup multiple value={days} onValueChange={(v) => setDays(v as string[])} variant="outline" size="sm" className="flex-wrap">
+                        <ToggleGroup
+                            multiple
+                            value={days}
+                            onValueChange={(v) => setDays(v as string[])}
+                            variant="outline"
+                            size="sm"
+                            className="flex-wrap"
+                        >
                             {DAYS.map((d, i) => (
                                 <ToggleGroupItem key={d} value={String(i)} aria-label={d}>
                                     {d}
@@ -64,7 +83,11 @@ function SettingsForm({ initial }: { initial: AutomationSettings }) {
                     <div className="grid gap-4 sm:grid-cols-3">
                         <Field>
                             <FieldLabel htmlFor="a-start">From</FieldLabel>
-                            <Select value={start} onValueChange={(v) => setStart(v as string)} items={HOURS.slice(0, 24)}>
+                            <Select
+                                value={start}
+                                onValueChange={(v) => setStart(v as string)}
+                                items={HOURS.slice(0, 24)}
+                            >
                                 <SelectTrigger id="a-start" className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -94,10 +117,20 @@ function SettingsForm({ initial }: { initial: AutomationSettings }) {
                         </Field>
                         <Field>
                             <FieldLabel htmlFor="a-cap">Max per day</FieldLabel>
-                            <Input id="a-cap" type="number" min={1} max={2000} value={cap} onChange={(e) => setCap(e.target.value)} />
+                            <Input
+                                id="a-cap"
+                                type="number"
+                                min={1}
+                                max={2000}
+                                value={cap}
+                                onChange={(e) => setCap(e.target.value)}
+                            />
                         </Field>
                     </div>
-                    <FieldDescription>Times are India time ({initial.sendWindow.timezone}). Gmail allows about 2,000 emails a day in total.</FieldDescription>
+                    <FieldDescription>
+                        Times are India time ({initial.sendWindow.timezone}). Gmail allows about 2,000 emails a day in
+                        total.
+                    </FieldDescription>
                 </FieldGroup>
             </CardContent>
             <CardFooter className="justify-end pt-6">
@@ -112,7 +145,8 @@ function SettingsForm({ initial }: { initial: AutomationSettings }) {
 
 export function AutomationSettingsCard() {
     const settings = useAutomationSettings();
-    if (settings.isError) return <ErrorState message={errorMessage(settings.error)} onRetry={() => void settings.refetch()} />;
+    if (settings.isError)
+        return <ErrorState message={errorMessage(settings.error)} onRetry={() => void settings.refetch()} />;
     if (settings.isPending) return <Skeleton className="h-72 max-w-2xl rounded-xl" />;
     return <SettingsForm key={JSON.stringify(settings.data)} initial={settings.data} />;
 }

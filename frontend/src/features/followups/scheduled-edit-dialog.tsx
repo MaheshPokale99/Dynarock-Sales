@@ -60,7 +60,9 @@ export function ScheduledEditDialog({ item, onClose }: { item: ScheduledEmail; o
             <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        {item.kind === "follow_up" ? `Follow-up ${item.step ?? ""}${item.totalSteps ? ` of ${item.totalSteps}` : ""}` : "Scheduled email"}
+                        {item.kind === "follow_up"
+                            ? `Follow-up ${item.step ?? ""}${item.totalSteps ? ` of ${item.totalSteps}` : ""}`
+                            : "Scheduled email"}
                     </DialogTitle>
                     <DialogDescription>{item.thread?.subject ?? item.subject}</DialogDescription>
                 </DialogHeader>
@@ -77,13 +79,22 @@ export function ScheduledEditDialog({ item, onClose }: { item: ScheduledEmail; o
                     </div>
                     <Field className="max-w-xs">
                         <FieldLabel htmlFor="send-at">Send at</FieldLabel>
-                        <Input id="send-at" type="datetime-local" value={sendAt} onChange={(e) => setSendAt(e.target.value)} />
+                        <Input
+                            id="send-at"
+                            type="datetime-local"
+                            value={sendAt}
+                            onChange={(e) => setSendAt(e.target.value)}
+                        />
                     </Field>
                 </div>
                 <DialogFooter className="sm:justify-between">
                     {item.kind === "follow_up" && ai?.enabled ? (
                         <Button variant="ghost" onClick={rewrite} disabled={regenerate.isPending}>
-                            {regenerate.isPending ? <Spinner data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
+                            {regenerate.isPending ? (
+                                <Spinner data-icon="inline-start" />
+                            ) : (
+                                <Sparkles data-icon="inline-start" />
+                            )}
                             Rewrite with AI
                         </Button>
                     ) : (

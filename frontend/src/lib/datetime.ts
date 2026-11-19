@@ -29,5 +29,11 @@ export const whenLabel = (iso: string) => {
     const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
     if (d.toDateString() === today.toDateString()) return `Today, ${time}`;
     if (d.toDateString() === tomorrow.toDateString()) return `Tomorrow, ${time}`;
-    return d.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    return d.toLocaleString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+    });
 };

@@ -17,6 +17,7 @@ import { useMailbox, useThread, useUpdateThread } from "@/hooks/use-mail";
 import { errorMessage, type ComposeMode, type Message } from "@/lib/api";
 import { displayName, quoteHtml, replyRecipients, subjectFor } from "@/lib/mail-format";
 import { SuggestionCard } from "../approvals/suggestion-card";
+import { AutomationPanel } from "./automation-panel";
 import { ComposeForm, withSignature, type ComposeInit } from "../compose/compose-form";
 import { ContactPanel } from "./contact-panel";
 import { MessageCard } from "./message-card";
@@ -161,6 +162,11 @@ export function ThreadView({
                             }
                         />
                     ))}
+
+                    <AutomationPanel
+                        threadId={thread.id}
+                        canStart={thread.state === "awaiting_reply" && Boolean(thread.lastOutboundAt)}
+                    />
 
                     {!reply && suggestion && (
                         <SuggestionCard key={suggestion.id} suggestion={suggestion} showThreadLink={false} />

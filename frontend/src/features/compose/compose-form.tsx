@@ -11,13 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMe } from "@/hooks/use-auth";
+import { useAutomationSettings, useSequences } from "@/hooks/use-automation";
 import { useSendEmail } from "@/hooks/use-mail";
 import { api, errorMessage, type ComposeMode, type DraftAttachment } from "@/lib/api";
+import { whenLabel } from "@/lib/datetime";
 import { fileSize, isEmail } from "@/lib/mail-format";
 import { cn } from "@/lib/utils";
 import { AiAssist, type AiResult } from "./ai-assist";
 import { RecipientInput } from "./recipient-input";
 import { RichEditor } from "./rich-editor";
+import { FollowUpToggle, ScheduleMenu, type FollowUpChoice } from "./send-options";
 
 export interface ComposeInit {
     mode: ComposeMode;
@@ -75,6 +78,12 @@ export function ComposeForm({
     const [uploading, setUploading] = useState(0);
     const [draftId, setDraftId] = useState(init.draftId);
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(init.draftId ? "saved" : "idle");
+    const { data: plans } = useSequences();
+    const { data: automation } = useAutomationSettings();
+    const activePlans = (plans ?? []).filter((p) => p.active);
+    const defaultPlanId = automation?.defaultSequenceId ?? activePlans[0]?.id ?? null;
+    // On by default for brand-new emails: no reply means an automatic follow-up.
+    const [followUp, setFollowUp] = useState<FollowUpChoice>({ enabled: init.mode === "new", planId: null });
     const [editor, setEditor] = useState<Editor | null>(null);
     const [aiWarnings, setAiWarnings] = useState<string[]>([]);
     const fileInput = useRef<HTMLInputElement>(null);
@@ -151,12 +160,13 @@ export function ComposeForm({
     const invalid = [...to, ...cc, ...bcc].filter((e) => !isEmail(e));
     const canSend = [...to, ...cc, ...bcc].length > 0 && invalid.length === 0 && uploading === 0 && !send.isPending;
 
-    const submit = () => {
+    const submit = (sendAt?: string) => {
         if (!canSend) {
             if (invalid.length) toast.error(`Fix these addresses first: ${invalid.join(", ")}`);
             else if (![...to, ...cc, ...bcc].length) toast.error("Add at least one recipient");
             return;
         }
+        const planId = followUp.enabled ? (followUp.planId ?? defaultPlanId) : null;
         send.mutate(
             {
                 mode: init.mode,
@@ -169,16 +179,24 @@ export function ComposeForm({
                 html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${html}${includeQuote && init.quoteHtml ? init.quoteHtml : ""}</div>`,
                 attachmentFileIds: attachments.map((a) => a.fileId),
                 draftId,
+                followUp: planId ? { sequenceId: planId } : null,
+                sendAt,
             },
             {
-                onSuccess: ({ threadId }) => {
+                onSuccess: (result) => {
                     sent.current = true;
-                    toast.success("Email sent", {
-                        action:
-                            init.mode === "new"
-                                ? { label: "View", onClick: () => router.push(`/inbox?t=${threadId}`) }
-                                : undefined,
-                    });
+                    if (result.scheduled && result.sendAt) {
+                        toast.success(`Scheduled for ${whenLabel(result.sendAt)}`, {
+                            action: { label: "Follow-ups", onClick: () => router.push("/follow-ups") },
+                        });
+                    } else {
+                        toast.success(planId ? "Email sent · follow-ups scheduled" : "Email sent", {
+                            action:
+                                init.mode === "new" && result.threadId
+                                    ? { label: "View", onClick: () => router.push(`/inbox?t=${result.threadId}`) }
+                                    : undefined,
+                        });
+                    }
                     onDone();
                 },
                 onError: (e) => toast.error(errorMessage(e)),
@@ -315,11 +333,21 @@ export function ComposeForm({
                 </div>
             )}
 
+            {init.mode !== "forward" && <FollowUpToggle value={followUp} onChange={setFollowUp} plans={activePlans} />}
+
             <div className="flex items-center gap-1 border-t px-2 py-2">
-                <Button type="button" onClick={submit} disabled={send.isPending || uploading > 0}>
-                    {send.isPending ? <Spinner data-icon="inline-start" /> : <Send data-icon="inline-start" />}
-                    Send
-                </Button>
+                <div className="flex">
+                    <Button
+                        type="button"
+                        className="rounded-r-none"
+                        onClick={() => submit()}
+                        disabled={send.isPending || uploading > 0}
+                    >
+                        {send.isPending ? <Spinner data-icon="inline-start" /> : <Send data-icon="inline-start" />}
+                        Send
+                    </Button>
+                    <ScheduleMenu onPick={(at) => submit(at)} disabled={send.isPending || uploading > 0} />
+                </div>
                 <input
                     ref={fileInput}
                     type="file"

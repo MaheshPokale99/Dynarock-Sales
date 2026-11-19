@@ -25,7 +25,11 @@ export const useThreadAutomation = (threadId: string) =>
     });
 
 export const useScheduled = (p: { status?: ScheduledStatus; kind?: "follow_up" | "send_later" }) =>
-    useQuery({ queryKey: automationKeys.scheduled(p), queryFn: () => api.automation.scheduled(p), refetchInterval: 60_000 });
+    useQuery({
+        queryKey: automationKeys.scheduled(p),
+        queryFn: () => api.automation.scheduled(p),
+        refetchInterval: 60_000,
+    });
 
 export const useScheduledCounts = () =>
     useQuery({ queryKey: automationKeys.counts, queryFn: api.automation.counts, refetchInterval: 60_000 });

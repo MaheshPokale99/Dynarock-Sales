@@ -71,8 +71,8 @@ export function FollowUpsPage() {
             />
             {counts && (
                 <p className="mb-4 text-sm text-muted-foreground">
-                    {counts.upcoming} scheduled · {counts.today} due today · {counts.sentToday} of {counts.dailyCap} automatic
-                    emails sent today
+                    {counts.upcoming} scheduled · {counts.today} due today · {counts.sentToday} of {counts.dailyCap}{" "}
+                    automatic emails sent today
                 </p>
             )}
             {counts?.paused && (

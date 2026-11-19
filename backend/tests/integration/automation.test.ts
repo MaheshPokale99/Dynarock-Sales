@@ -102,7 +102,10 @@ describe("follow-up plans", () => {
 
         const sent = gmail.sent.at(-1)!;
         assert.match(unsubscribeUrl(sent.parsed), /^https:\/\/api\.sales\.dynarock\.in\/u\//);
-        assert.match(Buffer.from(sent.raw, "base64url").toString(), /^List-Unsubscribe-Post: List-Unsubscribe=One-Click$/m);
+        assert.match(
+            Buffer.from(sent.raw, "base64url").toString(),
+            /^List-Unsubscribe-Post: List-Unsubscribe=One-Click$/m,
+        );
         assert.match(sent.parsed.html || "", /unsubscribe here/);
         const message = await stack.container.database.models.Message.findOne({ origin: "app_followup" }).lean();
         assert.ok(message, "follow-up is saved with its own origin");

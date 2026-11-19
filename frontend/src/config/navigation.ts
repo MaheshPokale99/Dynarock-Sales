@@ -48,7 +48,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
                 href: "/follow-ups",
                 label: "Follow-ups",
                 icon: CalendarClock,
-                soon: "Scheduled follow-ups and follow-up plans will live here.",
             },
             { href: "/contacts", label: "Contacts", icon: UsersRound },
             { href: "/organizations", label: "Colleges", icon: Building2 },

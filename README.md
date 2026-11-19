@@ -15,8 +15,8 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 2 | Gmail connection, sync, shared Inbox, Gmail-style Compose, replies, drafts, attachments | Done |
 | 3 | Contacts and colleges (auto-created and auto-linked from email), stage history, pipeline board | Done |
 | 4 | AI (Gemini): AI Write and Rewrite in Compose, reply labels and summaries, suggested replies in Approvals, Knowledge base | Done |
-| 5 | Automatic follow-ups | Next |
-| 6 | Analytics dashboard | |
+| 5 | Automatic follow-ups (plans, AI-written steps, send window, daily limit, pause), schedule send, unsubscribe | Done |
+| 6 | Analytics dashboard | Next |
 
 ## Stack
 
@@ -96,6 +96,8 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | `GOOGLE_REDIRECT_URI` | `http://localhost:<PORT>/api/v1/mailbox/oauth/callback` | Must match the OAuth client |
 | `ENCRYPTION_KEY` | none | 32 bytes, base64; encrypts the stored Gmail tokens |
 | `GMAIL_SYNC_INTERVAL_SECONDS` | `60` | How often new mail is fetched |
+| `API_PUBLIC_URL` | `http://localhost:<PORT>` | Public URL of the API, used in unsubscribe links |
+| `AI_RATE_LIMIT_PER_MINUTE` | `20` | Per-IP limit on AI endpoints |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | none / `gemini-3.1-flash-lite` | AI features (from phase 4) |
 | `RATE_LIMIT_PER_MINUTE` / `AUTH_RATE_LIMIT_PER_MINUTE` | `300` / `10` | Per-IP limits; the second protects sign-in and invites |
 | `TRUST_PROXY` | `false` | Read the client IP from `X-Forwarded-For` behind a proxy |
@@ -134,9 +136,19 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | GET | `/ai/suggestions?status=&threadId=` · `/ai/suggestions/counts` | signed in | Reply drafts waiting for approval, and history |
 | POST | `/ai/suggestions/:id/send` · `/ai/suggestions/:id/reject` | signed in | Approve (after editing) or reject a draft |
 | GET / POST / PATCH / DELETE | `/knowledge` | read: signed in, write: admin | Product facts the AI may use |
+| POST | `/emails/send` | signed in | Send now or later (`sendAt`), optionally with `followUp: { sequenceId }` |
+| GET / PATCH | `/automation/settings` | read: signed in, write: admin | Pause, daily limit, send window, default plan |
+| GET / POST / PATCH / DELETE | `/sequences` | read: signed in, write: admin | Follow-up plans |
+| POST / GET | `/threads/:id/enroll` · `/threads/:id/automation` | signed in | Start follow-ups on a conversation; its plan and scheduled emails |
+| POST | `/enrollments/:id/stop` · `/pause` · `/resume` | signed in | Control a running plan |
+| GET | `/scheduled-emails?status=&kind=&threadId=` · `/scheduled-emails/counts` | signed in | Scheduled, sent and stopped emails |
+| PATCH / POST | `/scheduled-emails/:id` · `/cancel` · `/send-now` · `/regenerate` | signed in | Edit, cancel, send now, rewrite with AI |
+| GET / POST | `/u/:token` (outside `/api`) | public | Unsubscribe page and one-click unsubscribe |
 | GET | `/health` · `/healthz` · `/readyz` | — | Status and probes |
 
 How contacts work: every email sent or received creates the contact if needed and links them to the college with the same email domain (never for gmail.com and other personal providers). Stages move forward on their own, New → Contacted when we email, → Replied when they answer, and never backwards. Unsubscribed, bounced and do-not-contact people can't be emailed.
+
+How follow-ups work: tick **Follow up if no reply** in Compose (on by default for new emails) or start a plan from any conversation. The standard plan sends three follow-ups (about day 3, 7 and 14). Each one is written by the AI as soon as the previous email goes out, so it shows as **Scheduled** in the conversation and on the Follow-ups page, where anyone can edit it, send it now or cancel it. A client reply (not an auto-reply) or an unsubscribe stops the plan; a manual reply pushes the next follow-up back. Automatic emails only go out inside the send window (default Mon–Sat 9:00–18:00 IST), never above the daily limit, and not at all while automation is paused. Every automatic email carries an unsubscribe link and one-click unsubscribe headers.
 
 How the AI works: every new client email is labelled (interested, wants a demo, question, pricing, objection, not now, not interested, out of office, unsubscribe) with a one-line summary. For emails that need an answer, Gemini drafts a reply that waits in **Approvals**; nothing is sent until a person edits and approves it. Unsubscribe requests mark the contact unsubscribed. The AI only uses facts from the **Knowledge** page (seeded from dynarock.in); any figure or link it writes that isn't in the knowledge base or the conversation is flagged for review. Client emails are passed to the model as data, never as instructions.
 
@@ -151,14 +163,14 @@ backend/src/
   database/                            Mongoose connection and model registry
   common/                              errors, http helpers, logger, middleware, utils
   modules/<name>/                      model, repository, service, controller, routes, schema
-    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  system/
+    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  knowledge/  ai/  automation/  system/
   integrations/gmail/                  OAuth, REST client, MIME build/parse
   integrations/gemini/                 Gemini client (JSON output)
-  workers/                             background Gmail sync
+  workers/                             Gmail sync and the follow-up sender
 frontend/src/
   app/(auth)/                          login, accept-invite
   app/(app)/                           signed-in pages inside the sidebar shell
-  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge
+  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline, approvals, knowledge, followups
   components/ui/                       shadcn components
   hooks/  lib/api/  config/
 ```

@@ -108,7 +108,9 @@ export function ScheduledItem({ item, showThread = true }: { item: ScheduledEmai
             <AlertDialog open={confirmCancel} onOpenChange={setConfirmCancel}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>{item.kind === "follow_up" ? "Stop follow-ups here?" : "Cancel this email?"}</AlertDialogTitle>
+                        <AlertDialogTitle>
+                            {item.kind === "follow_up" ? "Stop follow-ups here?" : "Cancel this email?"}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
                             {item.kind === "follow_up"
                                 ? "This follow-up and the rest of the plan for this conversation won’t be sent."

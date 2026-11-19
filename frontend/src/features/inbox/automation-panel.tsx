@@ -61,7 +61,10 @@ function StartFollowUps({ threadId }: { threadId: string }) {
                     planId &&
                     enroll.mutate(
                         { threadId, sequenceId: planId },
-                        { onSuccess: () => toast.success("Follow-ups scheduled"), onError: (e) => toast.error(errorMessage(e)) },
+                        {
+                            onSuccess: () => toast.success("Follow-ups scheduled"),
+                            onError: (e) => toast.error(errorMessage(e)),
+                        },
                     )
                 }
             >
@@ -99,17 +102,32 @@ export function AutomationPanel({ threadId, canStart }: { threadId: string; canS
                     {enrollment.status === "paused" && <Badge variant="secondary">Paused</Badge>}
                     <div className="ml-auto flex gap-1">
                         {enrollment.status === "active" ? (
-                            <Button size="sm" variant="ghost" onClick={() => run("pause", "Follow-ups paused")} disabled={action.isPending}>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => run("pause", "Follow-ups paused")}
+                                disabled={action.isPending}
+                            >
                                 <Pause data-icon="inline-start" />
                                 Pause
                             </Button>
                         ) : (
-                            <Button size="sm" variant="ghost" onClick={() => run("resume", "Follow-ups resumed")} disabled={action.isPending}>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => run("resume", "Follow-ups resumed")}
+                                disabled={action.isPending}
+                            >
                                 <Play data-icon="inline-start" />
                                 Resume
                             </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => run("stop", "Follow-ups stopped")} disabled={action.isPending}>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => run("stop", "Follow-ups stopped")}
+                            disabled={action.isPending}
+                        >
                             <Square data-icon="inline-start" />
                             Stop
                         </Button>
@@ -120,7 +138,9 @@ export function AutomationPanel({ threadId, canStart }: { threadId: string; canS
                 <ScheduledItem key={s.id} item={s} showThread={false} />
             ))}
             {!running && enrollment?.status === "stopped" && enrollment.stopReason && (
-                <p className="text-xs text-muted-foreground">Follow-ups stopped because {STOPPED[enrollment.stopReason]}.</p>
+                <p className="text-xs text-muted-foreground">
+                    Follow-ups stopped because {STOPPED[enrollment.stopReason]}.
+                </p>
             )}
             {!running && enrollment?.status === "completed" && (
                 <p className="text-xs text-muted-foreground">All follow-ups in the plan were sent.</p>

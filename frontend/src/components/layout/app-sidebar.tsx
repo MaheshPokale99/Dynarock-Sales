@@ -23,6 +23,7 @@ import {
 import { APP_NAME, APP_TAGLINE, HOME_PATH, NAV_SECTIONS, isNavActive } from "@/config/navigation";
 import { useCompose } from "@/features/compose/compose-provider";
 import { useSuggestionCounts } from "@/hooks/use-ai";
+import { useScheduledCounts } from "@/hooks/use-automation";
 import { useThreadCounts } from "@/hooks/use-mail";
 import type { User } from "@/lib/api";
 
@@ -33,6 +34,7 @@ export function AppSidebar({ user }: { user: User }) {
     const compose = useCompose();
     const { data: counts } = useThreadCounts();
     const { data: approvals } = useSuggestionCounts();
+    const { data: scheduled } = useScheduledCounts();
 
     return (
         <Sidebar collapsible="icon">
@@ -92,6 +94,11 @@ export function AppSidebar({ user }: { user: User }) {
                                                     <Icon aria-hidden />
                                                     <span>{label}</span>
                                                 </SidebarMenuButton>
+                                                {href === "/follow-ups" && (scheduled?.today ?? 0) > 0 && (
+                                                    <SidebarMenuBadge aria-label={`${scheduled?.today} due today`}>
+                                                        {scheduled?.today}
+                                                    </SidebarMenuBadge>
+                                                )}
                                                 {href === "/approvals" && (approvals?.pending ?? 0) > 0 && (
                                                     <SidebarMenuBadge
                                                         aria-label={`${approvals?.pending} waiting for approval`}

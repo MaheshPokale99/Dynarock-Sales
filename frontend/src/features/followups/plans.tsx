@@ -36,6 +36,10 @@ import { CalendarClock } from "lucide-react";
 
 const NEW_STEP: SequenceStep = { delayDays: 3, instruction: "A short, friendly follow-up.", fixedText: "" };
 
+// Day each step goes out, counting from the first email.
+const dayOfEachStep = (steps: SequenceStep[]) =>
+    steps.reduce<number[]>((acc, s) => [...acc, (acc.at(-1) ?? 0) + s.delayDays], []);
+
 function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => void }) {
     const save = useSaveSequence();
     const [name, setName] = useState(plan?.name ?? "");
@@ -44,7 +48,7 @@ function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => v
     const [steps, setSteps] = useState<SequenceStep[]>(plan?.steps ?? [NEW_STEP]);
     const setStep = (i: number, patch: Partial<SequenceStep>) =>
         setSteps((list) => list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-    let day = 0;
+    const days = dayOfEachStep(steps);
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -86,12 +90,11 @@ function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => v
                         </Field>
                         <ol className="space-y-3">
                             {steps.map((s, i) => {
-                                day += s.delayDays;
                                 return (
                                     <li key={i} className="space-y-3 rounded-lg border p-3">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium">Follow-up {i + 1}</span>
-                                            <span className="text-xs text-muted-foreground">around day {day}</span>
+                                            <span className="text-xs text-muted-foreground">around day {days[i]}</span>
                                             {steps.length > 1 && (
                                                 <Button
                                                     type="button"
@@ -116,9 +119,13 @@ function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => v
                                                 max={60}
                                                 className="w-20"
                                                 value={s.delayDays}
-                                                onChange={(e) => setStep(i, { delayDays: Math.max(1, Number(e.target.value) || 1) })}
+                                                onChange={(e) =>
+                                                    setStep(i, { delayDays: Math.max(1, Number(e.target.value) || 1) })
+                                                }
                                             />
-                                            <span className="text-sm text-muted-foreground">days after the previous email</span>
+                                            <span className="text-sm text-muted-foreground">
+                                                days after the previous email
+                                            </span>
                                         </Field>
                                         <Field>
                                             <FieldLabel htmlFor={`p-inst-${i}`}>What the AI should write</FieldLabel>
@@ -144,7 +151,12 @@ function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => v
                             })}
                         </ol>
                         {steps.length < 10 && (
-                            <Button type="button" variant="outline" size="sm" onClick={() => setSteps((l) => [...l, { ...NEW_STEP, delayDays: 7 }])}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSteps((l) => [...l, { ...NEW_STEP, delayDays: 7 }])}
+                            >
                                 <Plus data-icon="inline-start" />
                                 Add follow-up
                             </Button>
@@ -188,11 +200,15 @@ export function Plans() {
                 </Button>
             )}
             {plans.data.length === 0 ? (
-                <EmptyState icon={CalendarClock} title="No follow-up plans" description="Create one to follow up automatically." />
+                <EmptyState
+                    icon={CalendarClock}
+                    title="No follow-up plans"
+                    description="Create one to follow up automatically."
+                />
             ) : (
                 plans.data.map((p) => {
                     const isDefault = settings?.defaultSequenceId === p.id;
-                    let day = 0;
+                    const days = dayOfEachStep(p.steps);
                     return (
                         <Card key={p.id} size="sm" className={p.active ? undefined : "opacity-60"}>
                             <CardContent className="space-y-2">
@@ -209,7 +225,10 @@ export function Plans() {
                                                     onClick={() =>
                                                         updateSettings.mutate(
                                                             { defaultSequenceId: p.id },
-                                                            { onSuccess: () => toast.success(`${p.name} is now the default`) },
+                                                            {
+                                                                onSuccess: () =>
+                                                                    toast.success(`${p.name} is now the default`),
+                                                            },
                                                         )
                                                     }
                                                 >
@@ -217,7 +236,12 @@ export function Plans() {
                                                     Make default
                                                 </Button>
                                             )}
-                                            <Button variant="ghost" size="icon-sm" onClick={() => setEditing({ plan: p })} aria-label={`Edit ${p.name}`}>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                onClick={() => setEditing({ plan: p })}
+                                                aria-label={`Edit ${p.name}`}
+                                            >
                                                 <Pencil aria-hidden />
                                             </Button>
                                             <Button
@@ -238,21 +262,24 @@ export function Plans() {
                                 </div>
                                 {p.description && <p className="text-sm text-muted-foreground">{p.description}</p>}
                                 <ol className="flex flex-wrap gap-2 text-xs">
-                                    {p.steps.map((s, i) => {
-                                        day += s.delayDays;
-                                        return (
-                                            <li key={i} className="rounded-full border px-2.5 py-1 text-muted-foreground" title={s.fixedText || s.instruction}>
-                                                Day {day} · {s.fixedText ? "fixed text" : "AI"}
-                                            </li>
-                                        );
-                                    })}
+                                    {p.steps.map((s, i) => (
+                                        <li
+                                            key={i}
+                                            className="rounded-full border px-2.5 py-1 text-muted-foreground"
+                                            title={s.fixedText || s.instruction}
+                                        >
+                                            Day {days[i]} · {s.fixedText ? "fixed text" : "AI"}
+                                        </li>
+                                    ))}
                                 </ol>
                             </CardContent>
                         </Card>
                     );
                 })
             )}
-            {editing && <PlanDialog key={editing.plan?.id ?? "new"} plan={editing.plan} onClose={() => setEditing(null)} />}
+            {editing && (
+                <PlanDialog key={editing.plan?.id ?? "new"} plan={editing.plan} onClose={() => setEditing(null)} />
+            )}
         </div>
     );
 }
