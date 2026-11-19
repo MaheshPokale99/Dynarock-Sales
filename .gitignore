@@ -6,3 +6,5 @@ dist
 backend/data/
 backend/src/generated/
 *.tsbuildinfo
+deploy/gcp/secrets.env
+deploy/gcp/.build/

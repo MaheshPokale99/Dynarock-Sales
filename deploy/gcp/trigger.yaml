@@ -1,0 +1,16 @@
+# Cloud Build trigger, imported by trigger.sh. Disabled on purpose: it never fires on its own.
+# .github/workflows/backend-deploy.yml runs it for a specific commit after every GitHub check passes.
+name: dynarock-sales-api-deploy
+description: Deploys dynarock-sales-api from cloudbuild.yaml. Started by GitHub Actions after checks pass.
+disabled: true
+filename: cloudbuild.yaml
+github:
+  owner: MaheshPokale99
+  name: admission-detective-api
+  push:
+    branch: ^main$
+includedFiles:
+  - backend/**
+  - cloudbuild.yaml
+  - .gcloudignore
+serviceAccount: projects/dynarock-backend-2026/serviceAccounts/dynarock-sales-build@dynarock-backend-2026.iam.gserviceaccount.com

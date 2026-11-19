@@ -1,0 +1,53 @@
+# Git files
+.git/
+.gitignore
+.github/
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Environment files
+.env
+*.env
+.env.*
+*.env.*
+!*.env.example
+!.env.example
+deploy/gcp/secrets.env
+
+# Build artifacts
+dist/
+build/
+.next/
+*.log
+logs/
+backend/data/
+deploy/gcp/.build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Frontend is not deployed to Cloud Run
+frontend/
+
+# Docker (not needed for Cloud Build; context is backend/)
+docker-compose*.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp

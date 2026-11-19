@@ -1,0 +1,118 @@
+# Backend checks run in GitHub Actions (.github/workflows/backend-deploy.yml) before this deployment config is invoked.
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: dynarock-sales-api
+  _ARTIFACT_REGISTRY: dynarock
+  _API_DOMAIN: api.sales.dynarock.in
+  _WEB_DOMAIN: sales.dynarock.in
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-backend'
+    waitFor: ['-']
+    entrypoint: 'bash'
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/sales-api
+        if docker manifest inspect "$$image:$COMMIT_SHA" > /dev/null 2>&1; then
+          echo "Using image built by GitHub Actions: $$image:$COMMIT_SHA"
+          exit 0
+        fi
+        docker pull "$$image:latest" || true
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from "$$image:latest" \
+          -t "$$image:$COMMIT_SHA" \
+          -t "$$image:latest" \
+          -f backend/Dockerfile backend
+        docker push "$$image:$COMMIT_SHA" &
+        docker push "$$image:latest" &
+        wait -n && wait -n
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-backend'
+    entrypoint: gcloud
+    waitFor: ['build-backend']
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/sales-api:$COMMIT_SHA'
+      - '--labels'
+      - 'managed-by=gcp-cloud-build-deploy-cloud-run,gcb-build-id=$BUILD_ID'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      # min-instances 0 avoids idle cost, but Gmail sync and follow-ups (in-process timers) only run while an instance is up.
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '2'
+      - '--concurrency'
+      - '80'
+      - '--timeout'
+      - '300'
+      # CPU stays on between requests so the timers keep running while the instance is up.
+      - '--no-cpu-throttling'
+      - '--cpu-boost'
+      - '--execution-environment'
+      - 'gen2'
+      # Only the load balancer (api.sales.dynarock.in) reaches the service; outbound goes through Cloud NAT (fixed IP for MongoDB Atlas).
+      - '--ingress'
+      - 'internal-and-cloud-load-balancing'
+      - '--network'
+      - 'dynarock-vpc'
+      - '--subnet'
+      - 'dynarock-run'
+      - '--vpc-egress'
+      - 'all-traffic'
+      - '--port'
+      - '8080'
+      - '--service-account'
+      - 'dynarock-sales-api@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - >-
+        NODE_ENV=production,
+        LOG_LEVEL=info,
+        FRONTEND_ORIGIN=https://${_WEB_DOMAIN},
+        API_PUBLIC_URL=https://${_API_DOMAIN},
+        SESSION_TTL_DAYS=14,
+        INVITE_TTL_DAYS=7,
+        COOKIE_SECURE=true,
+        BOOTSTRAP_ADMIN_NAME=Admin,
+        BOOTSTRAP_ADMIN_EMAIL=admin@dynarock.in,
+        MAILBOX_ADDRESS=sales@dynarock.in,
+        GOOGLE_REDIRECT_URI=https://${_API_DOMAIN}/api/v1/mailbox/oauth/callback,
+        GMAIL_SYNC_INTERVAL_SECONDS=60,
+        GEMINI_MODEL=gemini-3.1-flash-lite,
+        RATE_LIMIT_PER_MINUTE=300,
+        AUTH_RATE_LIMIT_PER_MINUTE=10,
+        AI_RATE_LIMIT_PER_MINUTE=20,
+        TRUST_PROXY=true
+      - '--set-secrets'
+      - >-
+        MONGODB_URI=dynarock-sales-mongodb-uri:latest,
+        ENCRYPTION_KEY=dynarock-sales-encryption-key:latest,
+        GOOGLE_CLIENT_ID=dynarock-sales-google-client-id:latest,
+        GOOGLE_CLIENT_SECRET=dynarock-sales-google-client-secret:latest,
+        GEMINI_API_KEY=dynarock-sales-gemini-api-key:latest,
+        BOOTSTRAP_ADMIN_PASSWORD=dynarock-sales-bootstrap-admin-password:latest
+
+serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/dynarock-sales-build@$PROJECT_ID.iam.gserviceaccount.com'
+
+timeout: 1800s
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
