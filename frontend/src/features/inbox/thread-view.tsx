@@ -14,6 +14,7 @@ import { useMailbox, useThread, useUpdateThread } from "@/hooks/use-mail";
 import { errorMessage, type ComposeMode, type Message } from "@/lib/api";
 import { displayName, quoteHtml, replyRecipients, subjectFor } from "@/lib/mail-format";
 import { ComposeForm, withSignature, type ComposeInit } from "../compose/compose-form";
+import { ContactPanel } from "./contact-panel";
 import { MessageCard } from "./message-card";
 import { STATE_LABELS } from "./thread-list";
 
@@ -127,51 +128,54 @@ export function ThreadView({
                 </div>
             </header>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {messages.map((m) => (
-                    <MessageCard
-                        key={m.id}
-                        message={m}
-                        teamNames={teamNames}
-                        expanded={m.id === lastId || expanded.has(m.id)}
-                        onToggle={() =>
-                            setExpanded((s) => {
-                                const next = new Set(s);
-                                if (next.has(m.id)) next.delete(m.id);
-                                else next.add(m.id);
-                                return next;
-                            })
-                        }
-                    />
-                ))}
+            <div className="flex min-h-0 flex-1">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                    {messages.map((m) => (
+                        <MessageCard
+                            key={m.id}
+                            message={m}
+                            teamNames={teamNames}
+                            expanded={m.id === lastId || expanded.has(m.id)}
+                            onToggle={() =>
+                                setExpanded((s) => {
+                                    const next = new Set(s);
+                                    if (next.has(m.id)) next.delete(m.id);
+                                    else next.add(m.id);
+                                    return next;
+                                })
+                            }
+                        />
+                    ))}
 
-                {reply ? (
-                    <ComposeForm
-                        key={`${reply.mode}-${reply.replyToMessageId}`}
-                        init={reply}
-                        variant="inline"
-                        onDone={() => setReply(null)}
-                    />
-                ) : (
-                    last && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                            <Button variant="outline" onClick={() => startReply("reply", last)}>
-                                <Reply data-icon="inline-start" />
-                                Reply
-                            </Button>
-                            {[...last.to, ...last.cc].length > 1 && (
-                                <Button variant="outline" onClick={() => startReply("reply_all", last)}>
-                                    <ReplyAll data-icon="inline-start" />
-                                    Reply all
+                    {reply ? (
+                        <ComposeForm
+                            key={`${reply.mode}-${reply.replyToMessageId}`}
+                            init={reply}
+                            variant="inline"
+                            onDone={() => setReply(null)}
+                        />
+                    ) : (
+                        last && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                <Button variant="outline" onClick={() => startReply("reply", last)}>
+                                    <Reply data-icon="inline-start" />
+                                    Reply
                                 </Button>
-                            )}
-                            <Button variant="outline" onClick={() => startReply("forward", last)}>
-                                <Forward data-icon="inline-start" />
-                                Forward
-                            </Button>
-                        </div>
-                    )
-                )}
+                                {[...last.to, ...last.cc].length > 1 && (
+                                    <Button variant="outline" onClick={() => startReply("reply_all", last)}>
+                                        <ReplyAll data-icon="inline-start" />
+                                        Reply all
+                                    </Button>
+                                )}
+                                <Button variant="outline" onClick={() => startReply("forward", last)}>
+                                    <Forward data-icon="inline-start" />
+                                    Forward
+                                </Button>
+                            </div>
+                        )
+                    )}
+                </div>
+                <ContactPanel contacts={data?.contacts ?? []} />
             </div>
         </div>
     );

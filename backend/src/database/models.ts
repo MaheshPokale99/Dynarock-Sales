@@ -1,4 +1,6 @@
 import type { Connection } from "mongoose";
+import { contactSchema, type ContactDoc } from "../modules/contacts/contact.model.js";
+import { organizationSchema, type OrganizationDoc } from "../modules/organizations/organization.model.js";
 import { activitySchema, type ActivityDoc } from "../modules/activities/activity.model.js";
 import { inviteSchema, sessionSchema, type InviteDoc, type SessionDoc } from "../modules/auth/auth.model.js";
 import { draftSchema, type DraftDoc } from "../modules/drafts/draft.model.js";
@@ -18,6 +20,8 @@ export function registerModels(connection: Connection) {
         Message: connection.model<MessageDoc>("Message", messageSchema, "messages"),
         Draft: connection.model<DraftDoc>("Draft", draftSchema, "drafts"),
         Lock: connection.model<LockDoc>("Lock", lockSchema, "locks"),
+        Contact: connection.model<ContactDoc>("Contact", contactSchema, "contacts"),
+        Organization: connection.model<OrganizationDoc>("Organization", organizationSchema, "organizations"),
     };
 }
 

@@ -16,6 +16,12 @@ export const ACTIVITY_ACTIONS = [
     "mailbox.connected",
     "mailbox.disconnected",
     "email.sent",
+    "email.received",
+    "contact.created",
+    "contact.updated",
+    "contact.stage_changed",
+    "organization.created",
+    "organization.updated",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

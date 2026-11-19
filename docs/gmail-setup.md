@@ -1,4 +1,4 @@
-# Connecting sales@dynarock.in (Google Workspace)
+# Connecting `sales@dynarock.in` (Google Workspace)
 
 This is a one-time setup. It needs someone who can sign in to the Google Workspace admin console for `dynarock.in`. It takes about 15 minutes.
 
@@ -63,7 +63,7 @@ Keep `ENCRYPTION_KEY` safe and never change it. Changing it makes the saved conn
 
 1. Sign in to Dynarock Sales as an **admin**.
 2. Go to **Settings → Mailbox → Connect Gmail**.
-3. Choose the **sales@dynarock.in** account and click **Allow**.
+3. Choose the **`sales@dynarock.in`** account and click **Allow**.
 4. You land back on Settings with **Connected**. New mail is checked every minute, and **Check now** checks immediately.
 
 If you pick a different Google account, the app refuses it and tells you which account to use.

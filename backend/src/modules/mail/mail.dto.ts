@@ -15,6 +15,8 @@ export const toThreadDto = (t: ThreadDoc) => ({
     hasAttachments: t.hasAttachments,
     senderIds: t.senderIds.map((id) => id.toHexString()),
     startedBy: t.startedBy?.toHexString() ?? null,
+    contactIds: (t.contactIds ?? []).map((id) => id.toHexString()),
+    organizationId: t.organizationId?.toHexString() ?? null,
 });
 
 export const toMessageDto = (m: MessageDoc) => ({

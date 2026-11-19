@@ -16,6 +16,17 @@ import type {
     User,
     UserRole,
     Address,
+    Contact,
+    ContactDetail,
+    ContactInput,
+    ContactPage,
+    ContactStage,
+    ContactStatus,
+    Organization,
+    OrganizationDetail,
+    OrganizationInput,
+    OrganizationType,
+    Pipeline,
 } from "./types";
 
 type UserResponse = { user: User };
@@ -95,4 +106,27 @@ export const api = {
     },
 
     files: { upload },
+
+    contacts: {
+        list: (p: {
+            q?: string;
+            stage?: ContactStage;
+            status?: ContactStatus;
+            organizationId?: string;
+            ownerId?: string;
+            page?: number;
+        }) => request<ContactPage>(`/contacts${qs({ ...p, page: p.page ? String(p.page) : undefined })}`),
+        get: (id: string) => request<ContactDetail>(`/contacts/${id}`),
+        create: (body: ContactInput & { email: string }) => post<Contact>("/contacts", body),
+        update: (id: string, body: ContactInput) => patch<Contact>(`/contacts/${id}`, body),
+    },
+
+    pipeline: (p: { q?: string; ownerId?: string }) => request<Pipeline>(`/pipeline${qs(p)}`),
+
+    organizations: {
+        list: (p: { q?: string; type?: OrganizationType } = {}) => request<Organization[]>(`/organizations${qs(p)}`),
+        get: (id: string) => request<OrganizationDetail>(`/organizations/${id}`),
+        create: (body: OrganizationInput & { name: string }) => post<Organization>("/organizations", body),
+        update: (id: string, body: OrganizationInput) => patch<Organization>(`/organizations/${id}`, body),
+    },
 };

@@ -68,6 +68,8 @@ export interface Thread {
     hasAttachments: boolean;
     senderIds: string[];
     startedBy: string | null;
+    contactIds: string[];
+    organizationId: string | null;
 }
 
 export interface ThreadCounts {
@@ -108,6 +110,7 @@ export interface Message {
 export interface ThreadDetail {
     thread: Thread;
     messages: Message[];
+    contacts: Contact[];
 }
 
 export type ComposeMode = "new" | "reply" | "reply_all" | "forward";
@@ -150,4 +153,101 @@ export interface SendInput {
     html: string;
     attachmentFileIds: string[];
     draftId?: string;
+}
+
+export type ContactStage =
+    "new" | "contacted" | "replied" | "demo_scheduled" | "demo_done" | "proposal" | "negotiation" | "won" | "lost";
+export type ContactRole =
+    "principal" | "director" | "dean" | "registrar" | "it_head" | "trustee" | "faculty" | "admin_staff" | "other";
+export type ContactStatus = "active" | "unsubscribed" | "bounced" | "do_not_contact";
+export type OrganizationType =
+    "university" | "engineering_college" | "degree_college" | "school" | "institute" | "other";
+
+export interface Contact {
+    id: string;
+    email: string;
+    name: string;
+    role: ContactRole;
+    designation: string;
+    phone: string;
+    organizationId: string | null;
+    organization: { id: string; name: string } | null;
+    stage: ContactStage;
+    lostReason: string;
+    ownerId: string | null;
+    status: ContactStatus;
+    source: "compose" | "inbound" | "manual" | "import";
+    tags: string[];
+    notes: string;
+    lastContactedAt: string | null;
+    lastRepliedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ContactPage {
+    items: Contact[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
+export interface Activity {
+    id: string;
+    action: string;
+    actor: { type: "user" | "system" | "ai"; userId: string | null };
+    threadId: string | null;
+    meta: Record<string, unknown>;
+    createdAt: string;
+}
+
+export interface ContactDetail {
+    contact: Contact;
+    threads: Thread[];
+    activities: Activity[];
+}
+
+export interface ContactInput {
+    email?: string;
+    name?: string;
+    role?: ContactRole;
+    designation?: string;
+    phone?: string;
+    organizationId?: string | null;
+    stage?: ContactStage;
+    lostReason?: string;
+    ownerId?: string | null;
+    status?: ContactStatus;
+    tags?: string[];
+    notes?: string;
+}
+
+export interface Organization {
+    id: string;
+    name: string;
+    type: OrganizationType;
+    domain: string | null;
+    website: string;
+    city: string;
+    state: string;
+    country: string;
+    studentCount: number | null;
+    currentSystems: string;
+    notes: string;
+    tags: string[];
+    contactCount: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export type OrganizationInput = Partial<Omit<Organization, "id" | "contactCount" | "createdAt" | "updatedAt">>;
+
+export interface OrganizationDetail {
+    organization: Organization;
+    contacts: Contact[];
+    threads: Thread[];
+}
+
+export interface Pipeline {
+    stages: { stage: ContactStage; total: number; contacts: Contact[] }[];
 }

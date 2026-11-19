@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import type { Logger } from "../../common/logger/logger.js";
 import { isHistoryExpired, type GmailApi, type GmailMessage } from "../../integrations/gmail/gmail.types.js";
 import { parseGmailMessage } from "../../integrations/gmail/mime.js";
+import type { ContactsService } from "../contacts/contacts.service.js";
 import type { Locks } from "../locks/locks.js";
 import type { MailboxDoc } from "../mailbox/mailbox.model.js";
 import type { MailboxService } from "../mailbox/mailbox.service.js";
@@ -24,6 +25,7 @@ interface Deps {
     mail: MailRepository;
     mailbox: MailboxService;
     locks: Locks;
+    contacts: Pick<ContactsService, "linkMessage">;
     logger: Logger;
     lockTtlMs: number;
 }
@@ -110,8 +112,10 @@ export class MailSyncService {
             origin,
             app?.sentByUserId ?? null,
         );
-        const updated =
-            created || app ? await this.recomputeThread(thread._id, mailbox.email, created ? message : null) : thread;
+        if (!created && !app) return { thread, message, created };
+        await this.recomputeThread(thread._id, mailbox.email, created ? message : null);
+        await this.deps.contacts.linkMessage(mailbox.email, thread._id, message, created);
+        const updated = await this.deps.mail.findThread(thread._id.toHexString());
         return { thread: updated ?? thread, message, created };
     }
 

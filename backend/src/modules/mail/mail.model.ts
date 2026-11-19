@@ -32,6 +32,8 @@ export interface ThreadDoc {
     // Team members who sent at least one message here.
     senderIds: Types.ObjectId[];
     startedBy: Types.ObjectId | null;
+    contactIds: Types.ObjectId[];
+    organizationId: Types.ObjectId | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -53,10 +55,14 @@ export const threadSchema = new Schema<ThreadDoc>(
         hasAttachments: { type: Boolean, default: false },
         senderIds: { type: [Schema.Types.ObjectId], default: [] },
         startedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        contactIds: { type: [Schema.Types.ObjectId], default: [] },
+        organizationId: { type: Schema.Types.ObjectId, ref: "Organization", default: null },
     },
     { timestamps: true },
 );
 
+threadSchema.index({ contactIds: 1, lastMessageAt: -1 });
+threadSchema.index({ organizationId: 1, lastMessageAt: -1 });
 threadSchema.index({ mailboxId: 1, gmailThreadId: 1 }, { unique: true });
 threadSchema.index({ lastMessageAt: -1 });
 threadSchema.index({ state: 1, lastMessageAt: -1 });

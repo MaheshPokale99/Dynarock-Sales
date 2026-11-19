@@ -78,7 +78,7 @@ export function InboxPage() {
             <section
                 aria-label="Conversation list"
                 className={cn(
-                    "flex w-full min-w-0 flex-col border-r lg:w-[400px] lg:shrink-0",
+                    "flex w-full min-w-0 flex-col border-r lg:w-100 lg:shrink-0",
                     threadId && "max-lg:hidden",
                 )}
             >

@@ -1,8 +1,15 @@
-import { AppError, NotFoundError, UpstreamError, ValidationError } from "../../common/errors/app-error.js";
+import {
+    AppError,
+    ConflictError,
+    NotFoundError,
+    UpstreamError,
+    ValidationError,
+} from "../../common/errors/app-error.js";
 import type { Logger } from "../../common/logger/logger.js";
 import { GmailError } from "../../integrations/gmail/gmail.types.js";
 import { buildRawMessage, type OutgoingAttachment } from "../../integrations/gmail/mime.js";
 import type { ActivitiesRepository } from "../activities/activities.repository.js";
+import type { ContactsService } from "../contacts/contacts.service.js";
 import type { ComposeMode } from "../drafts/draft.model.js";
 import type { DraftsRepository } from "../drafts/drafts.repository.js";
 import { MAX_UPLOAD_BYTES, type FilesService } from "../files/files.service.js";
@@ -48,6 +55,7 @@ interface Deps {
     files: FilesService;
     drafts: DraftsRepository;
     activities: ActivitiesRepository;
+    contacts: Pick<ContactsService, "blockedRecipients" | "forThread">;
     logger: Logger;
 }
 
@@ -72,7 +80,8 @@ export class MailService {
     async detail(threadId: string) {
         const thread = await this.requireThread(threadId);
         const messages = await this.deps.mail.messagesOf(thread._id, true);
-        return { thread: toThreadDto(thread), messages: messages.map(toMessageDto) };
+        const contacts = await this.deps.contacts.forThread(thread.contactIds ?? []);
+        return { thread: toThreadDto(thread), messages: messages.map(toMessageDto), contacts };
     }
 
     async update(threadId: string, patch: { unread?: boolean; closed?: boolean }) {
@@ -96,6 +105,16 @@ export class MailService {
     async send(user: User, input: SendInput) {
         const recipients = [...input.to, ...input.cc, ...input.bcc];
         if (recipients.length === 0) throw new ValidationError("Add at least one recipient");
+        const blocked = await this.deps.contacts.blockedRecipients(recipients);
+        if (blocked.length > 0) {
+            throw new ConflictError(
+                `Can't email ${blocked.map((c) => c.email).join(", ")}.`,
+                blocked.map(
+                    (c) =>
+                        `${c.email} is marked ${c.status.replace(/_/g, " ")}. Remove them or change it on their contact page.`,
+                ),
+            );
+        }
 
         const { doc, api } = await this.deps.mailbox.connected();
         let thread: ThreadDoc | null = null;

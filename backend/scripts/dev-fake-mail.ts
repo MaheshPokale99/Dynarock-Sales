@@ -59,6 +59,7 @@ const api: GmailApiFactory = (token) => {
 const container = createContainer(config, logger, { gmailOAuth: oauth, gmailApi: api });
 await container.database.connect();
 await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin);
+await container.services.contacts.backfill(config.gmail.mailboxAddress);
 
 serve({ fetch: createApp(container).fetch, port: config.port }, (info) =>
     logger.info(`Fake-mail API on http://localhost:${info.port}. Settings → Connect Gmail, then send an email.`),

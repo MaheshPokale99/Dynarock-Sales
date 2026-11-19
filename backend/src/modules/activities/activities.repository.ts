@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import type { Models } from "../../database/models.js";
-import type { ActivityAction, ActorType } from "./activity.model.js";
+import type { ActivityAction, ActivityDoc, ActorType } from "./activity.model.js";
 
 export interface ActivityEntry {
     actor: { type: ActorType; userId?: string | null };
@@ -26,5 +26,13 @@ export class ActivitiesRepository {
             threadId: oid(entry.threadId),
             meta: entry.meta ?? {},
         });
+    }
+
+    // Timeline: actions on the contact plus everything in their conversations.
+    forContact(contactId: Types.ObjectId, threadIds: Types.ObjectId[], limit: number): Promise<ActivityDoc[]> {
+        return this.models.Activity.find({ $or: [{ contactId }, { threadId: { $in: threadIds } }] })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean<ActivityDoc[]>();
     }
 }

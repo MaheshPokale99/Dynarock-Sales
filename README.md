@@ -13,8 +13,8 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 0 | Clean-up: Prisma/Postgres and NIAT code removed, MongoDB (Mongoose) added | Done |
 | 1 | Accounts: sign in, invitations, roles (admin / sales rep), Team and Settings pages, app shell | Done |
 | 2 | Gmail connection, sync, shared Inbox, Gmail-style Compose, replies, drafts, attachments | Done |
-| 3 | Contacts, organizations, pipeline | Next |
-| 4 | AI: write and rewrite in Compose, reply suggestions, Approvals | |
+| 3 | Contacts and colleges (auto-created and auto-linked from email), stage history, pipeline board | Done |
+| 4 | AI: write and rewrite in Compose, reply suggestions, Approvals | Next |
 | 5 | Automatic follow-ups | |
 | 6 | Analytics dashboard | |
 
@@ -122,7 +122,14 @@ Follow [docs/gmail-setup.md](docs/gmail-setup.md): create the Google Cloud OAuth
 | GET | `/recipients?q=` | signed in | Address suggestions for Compose |
 | GET / POST / PATCH / DELETE | `/drafts` | signed in (own only) | Compose autosave |
 | POST / GET | `/files` · `/files/:id` | signed in | Upload / download Compose attachments (20 MB) |
+| GET / POST | `/contacts?q=&stage=&status=&organizationId=&ownerId=&page=` | signed in | List / add contacts |
+| GET / PATCH | `/contacts/:id` | signed in | Contact with conversations and timeline; edit, change stage (Lost needs a reason), owner, status |
+| GET | `/pipeline?q=&ownerId=` | signed in | Contacts grouped by stage |
+| GET / POST | `/organizations?q=&type=` | signed in | List / add colleges (adding a domain links matching contacts) |
+| GET / PATCH | `/organizations/:id` | signed in | College with people and conversations; edit |
 | GET | `/health` · `/healthz` · `/readyz` | — | Status and probes |
+
+How contacts work: every email sent or received creates the contact if needed and links them to the college with the same email domain (never for gmail.com and other personal providers). Stages move forward on their own, New → Contacted when we email, → Replied when they answer, and never backwards. Unsubscribed, bounced and do-not-contact people can't be emailed.
 
 Safety rules built in: only hashes of session and invite tokens are stored; a disabled user is signed out everywhere; nobody can change their own role or disable themselves; the team always keeps at least one active admin; cross-site form posts are rejected.
 
@@ -135,13 +142,13 @@ backend/src/
   database/                            Mongoose connection and model registry
   common/                              errors, http helpers, logger, middleware, utils
   modules/<name>/                      model, repository, service, controller, routes, schema
-    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  system/
+    auth/  users/  activities/  mailbox/  mail/  drafts/  files/  locks/  contacts/  organizations/  system/
   integrations/gmail/                  OAuth, REST client, MIME build/parse
   workers/                             background Gmail sync
 frontend/src/
   app/(auth)/                          login, accept-invite
   app/(app)/                           signed-in pages inside the sidebar shell
-  features/                            auth, team, settings, inbox, compose
+  features/                            auth, team, settings, inbox, compose, contacts, organizations, pipeline
   components/ui/                       shadcn components
   hooks/  lib/api/  config/
 ```

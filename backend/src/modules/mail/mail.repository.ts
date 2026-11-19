@@ -111,6 +111,34 @@ export class MailRepository {
             .lean<ThreadDoc[]>();
     }
 
+    threadsFor(filter: { contactIds?: Types.ObjectId[]; organizationId?: Types.ObjectId }, limit: number) {
+        const or: QueryFilter<ThreadDoc>[] = [];
+        if (filter.contactIds?.length) or.push({ contactIds: { $in: filter.contactIds } });
+        if (filter.organizationId) or.push({ organizationId: filter.organizationId });
+        if (or.length === 0) return Promise.resolve([] as ThreadDoc[]);
+        return this.models.Thread.find({ $or: or }).sort({ lastMessageAt: -1 }).limit(limit).lean<ThreadDoc[]>();
+    }
+
+    async linkThread(threadId: Types.ObjectId, contactIds: Types.ObjectId[], organizationId: Types.ObjectId | null) {
+        await this.models.Thread.updateOne({ _id: threadId }, { $addToSet: { contactIds: { $each: contactIds } } });
+        if (organizationId) {
+            await this.models.Thread.updateOne({ _id: threadId, organizationId: null }, { $set: { organizationId } });
+        }
+    }
+
+    async setOrganizationForContacts(contactIds: Types.ObjectId[], organizationId: Types.ObjectId) {
+        await this.models.Thread.updateMany(
+            { contactIds: { $in: contactIds }, organizationId: null },
+            { $set: { organizationId } },
+        );
+    }
+
+    threadsWithoutContacts(): Promise<ThreadDoc[]> {
+        return this.models.Thread.find({
+            $or: [{ contactIds: { $size: 0 } }, { contactIds: { $exists: false } }],
+        }).lean<ThreadDoc[]>();
+    }
+
     async counts(): Promise<Record<"needs_reply" | "unread", number>> {
         const [needsReply, unread] = await Promise.all([
             this.models.Thread.countDocuments({ state: "needs_reply" }),

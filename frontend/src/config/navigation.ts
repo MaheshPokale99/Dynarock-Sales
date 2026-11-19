@@ -9,6 +9,7 @@ import {
     Sparkles,
     Users,
     UsersRound,
+    Building2,
     type LucideIcon,
 } from "lucide-react";
 
@@ -50,8 +51,9 @@ export const NAV_SECTIONS: readonly NavSection[] = [
                 icon: CalendarClock,
                 soon: "Scheduled follow-ups and follow-up plans will live here.",
             },
-            { href: "/contacts", label: "Contacts", icon: UsersRound, soon: "Colleges and the people you email." },
-            { href: "/pipeline", label: "Pipeline", icon: Kanban, soon: "A board of every contact by stage." },
+            { href: "/contacts", label: "Contacts", icon: UsersRound },
+            { href: "/organizations", label: "Colleges", icon: Building2 },
+            { href: "/pipeline", label: "Pipeline", icon: Kanban },
             { href: "/dashboard", label: "Dashboard", icon: ChartLine, soon: "Growth charts and team numbers." },
         ],
     },

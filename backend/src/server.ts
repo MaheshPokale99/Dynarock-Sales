@@ -20,6 +20,9 @@ try {
 }
 logger.info("MongoDB ready");
 
+const linked = await container.services.contacts.backfill(config.gmail.mailboxAddress);
+if (linked > 0) logger.info({ threads: linked }, "Linked existing conversations to contacts");
+
 if (await container.services.users.bootstrapAdmin(config.auth.bootstrapAdmin)) {
     logger.info({ admin: config.auth.bootstrapAdmin?.email }, "Created the first admin from BOOTSTRAP_ADMIN_EMAIL");
 } else if ((await container.repositories.users.count()) === 0) {

@@ -4,6 +4,8 @@ import { MS_PER_MINUTE } from "../common/constants.js";
 import { rateLimit } from "../common/middleware/rate-limit.js";
 import type { Container } from "../container.js";
 import { createAuthRoutes } from "../modules/auth/auth.routes.js";
+import { createContactsRoutes } from "../modules/contacts/contacts.http.js";
+import { createOrganizationsRoutes } from "../modules/organizations/organizations.http.js";
 import { createDraftsRoutes } from "../modules/drafts/drafts.js";
 import { createFilesRoutes } from "../modules/files/files.routes.js";
 import { createMailRoutes } from "../modules/mail/mail.routes.js";
@@ -24,6 +26,8 @@ export function createV1Routes({ config, controllers }: Container) {
         .route("/mailbox", createMailboxRoutes(controllers.mailbox))
         .route("/drafts", createDraftsRoutes(controllers.drafts))
         .route("/files", createFilesRoutes(controllers.files))
+        .route("/organizations", createOrganizationsRoutes(controllers.organizations))
+        .route("/", createContactsRoutes(controllers.contacts))
         .route("/", createMailRoutes(controllers.mail))
         .route("/", createSystemRoutes(controllers.system));
 }

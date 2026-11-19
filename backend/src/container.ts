@@ -9,7 +9,13 @@ import { AuthController } from "./modules/auth/auth.controller.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { InvitesRepository } from "./modules/auth/invites.repository.js";
 import { SessionsRepository } from "./modules/auth/sessions.repository.js";
+import { ContactsController } from "./modules/contacts/contacts.http.js";
+import { ContactsRepository } from "./modules/contacts/contacts.repository.js";
+import { ContactsService } from "./modules/contacts/contacts.service.js";
 import { DraftsController } from "./modules/drafts/drafts.js";
+import { OrganizationsController } from "./modules/organizations/organizations.http.js";
+import { OrganizationsRepository } from "./modules/organizations/organizations.repository.js";
+import { OrganizationsService } from "./modules/organizations/organizations.service.js";
 import { DraftsRepository } from "./modules/drafts/drafts.repository.js";
 import { FilesController } from "./modules/files/files.routes.js";
 import { FilesService } from "./modules/files/files.service.js";
@@ -50,8 +56,12 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         mailboxes: new MailboxRepository(models),
         mail: new MailRepository(models),
         drafts: new DraftsRepository(models),
+        contacts: new ContactsRepository(models),
+        organizations: new OrganizationsRepository(models),
     };
 
+    const contacts = new ContactsService(repositories);
+    const organizations = new OrganizationsService({ ...repositories, contactsService: contacts });
     const auth = new AuthService({ ...repositories, config: config.auth, now });
     const users = new UsersService({ ...repositories, config, now });
     const mailbox = new MailboxService({
@@ -65,11 +75,12 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         mail: repositories.mail,
         mailbox,
         locks: new Locks(models),
+        contacts,
         logger,
         lockTtlMs: Math.max(config.gmail.syncIntervalMs * 2, 120_000),
     });
     const files = new FilesService(database.connection);
-    const mail = new MailService({ ...repositories, sync, mailbox, files, logger });
+    const mail = new MailService({ ...repositories, contacts, sync, mailbox, files, logger });
     const system = new SystemService(database, config);
 
     const cookie = { secure: config.auth.cookieSecure };
@@ -79,7 +90,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         logger,
         database,
         repositories,
-        services: { auth, users, mailbox, sync, mail, files },
+        services: { auth, users, mailbox, sync, mail, files, contacts, organizations },
         cookie,
         controllers: {
             auth: new AuthController(auth, { ...cookie, trustProxy: config.rateLimit.trustProxy }),
@@ -88,6 +99,8 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
             mail: new MailController(mail, sync),
             drafts: new DraftsController(repositories.drafts),
             files: new FilesController(files),
+            contacts: new ContactsController(contacts),
+            organizations: new OrganizationsController(organizations),
             system: new SystemController(system),
         },
     };

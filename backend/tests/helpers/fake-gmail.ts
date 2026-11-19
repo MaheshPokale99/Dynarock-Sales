@@ -30,7 +30,8 @@ interface Delivery {
 export class FakeGmail {
     address = "sales@dynarock.in";
     profileEmail = this.address;
-    historyId = 1000;
+    // Starts from the clock so it keeps growing across demo restarts, like Gmail's.
+    historyId = Math.floor(Date.now() / 1000);
     expireHistory = false;
     failRefresh: "invalid_grant" | null = null;
     messages = new Map<string, GmailMessage>();
@@ -40,8 +41,9 @@ export class FakeGmail {
     labelChanges: { id: string; remove: string[] }[] = [];
     revoked: string[] = [];
     private seq = 0;
+    private readonly run = Math.random().toString(16).slice(2, 8);
 
-    private nextId = (prefix: string) => `${prefix}${(++this.seq).toString(16).padStart(6, "0")}`;
+    private nextId = (prefix: string) => `${prefix}${this.run}${(++this.seq).toString(16).padStart(6, "0")}`;
 
     private store(message: Omit<GmailMessage, "id" | "historyId">, id = this.nextId("m")): GmailMessage {
         this.historyId += 1;
