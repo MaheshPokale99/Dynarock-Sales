@@ -341,3 +341,88 @@ describe("follow-up safety", () => {
         assert.doesNotMatch(prompt, /Budget is tight/);
     });
 });
+
+describe("last-mail check before a follow-up goes out", () => {
+    const ours = () => [...gmail.messages.values()][0]!;
+
+    it("doesn't follow up when the client's reply is the last mail, even from before the plan started", async () => {
+        const { c, planId } = await setup();
+        const sent = await c.post("/emails/send", { to: [CLIENT], subject: "Hi", html: "<p>Hello</p>" });
+        later(0.1);
+        gmail.deliver({ from: CLIENT, subject: "Re: Hi", text: "Send details", threadId: ours().threadId });
+        await c.post("/mailbox/sync");
+
+        await c.post(`/threads/${sent.body.threadId}/enroll`, { sequenceId: planId });
+        later(3.5);
+        assert.equal(await automation().runDue(), 0);
+        const state = (await c.get(`/threads/${sent.body.threadId}/automation`)).body;
+        assert.equal(state.enrollment.status, "stopped");
+        assert.equal(state.enrollment.stopReason, "replied");
+    });
+
+    it("stops follow-ups when the client writes in another conversation", async () => {
+        const { c, planId } = await setup();
+        const threadId = await sendWithFollowUps(c, planId);
+        gmail.deliver({
+            from: `Dr. Rao <${CLIENT}>`,
+            subject: "Separate question",
+            text: "Do you support NAAC reports?",
+        });
+        await c.post("/mailbox/sync");
+
+        const state = (await c.get(`/threads/${threadId}/automation`)).body;
+        assert.equal(state.enrollment.status, "stopped");
+        later(10);
+        assert.equal(await automation().runDue(), 0);
+    });
+
+    it("waits the full delay again when we emailed them straight from Gmail", async () => {
+        const { c, planId } = await setup();
+        await sendWithFollowUps(c, planId);
+        later(2);
+        gmail.deliver({
+            from: "sales@dynarock.in",
+            to: CLIENT,
+            subject: "Brochure",
+            text: "Attached our brochure.",
+            labels: ["SENT"],
+        });
+        await c.post("/mailbox/sync");
+
+        later(1.5);
+        assert.equal(await automation().runDue(), 0, "the follow-up waits 3 days from the Gmail email");
+        later(2);
+        assert.equal(await automation().runDue(), 1);
+    });
+
+    it("rewrites the AI follow-up from the latest mail when the conversation moved on", async () => {
+        const { c, planId } = await setup();
+        await sendWithFollowUps(c, planId);
+        later(0.1);
+        gmail.deliver({
+            from: CLIENT,
+            subject: "Out of office",
+            text: "Back Monday",
+            threadId: ours().threadId,
+            headers: { "Auto-Submitted": "auto-replied" },
+        });
+        await c.post("/mailbox/sync");
+        ai.answers.compose = { subject: "x", body: "Welcome back, Dr. Rao. Shall we pick a demo slot?" };
+
+        later(3.2);
+        assert.equal(await automation().runDue(), 1);
+        assert.match(gmail.sent.at(-1)!.parsed.html || "", /Welcome back, Dr\. Rao/);
+    });
+
+    it("sends follow-ups in the Dynarock layout with the sender's signature", async () => {
+        const { c, planId } = await setup();
+        await c.patch("/auth/me", { name: ADMIN.name, signatureHtml: "Asha Admin<br>Sales, Dynarock" });
+        await sendWithFollowUps(c, planId);
+        later(3.2);
+        assert.equal(await automation().runDue(), 1);
+        const html = gmail.sent.at(-1)!.parsed.html || "";
+        assert.match(html, /data-layout="dynarock"/);
+        assert.match(html, /Sales, Dynarock/);
+        assert.equal(html.match(/data-layout="dynarock"/g)?.length, 1, "wrapped once");
+    });
+});

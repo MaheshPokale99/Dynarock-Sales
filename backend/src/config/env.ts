@@ -42,11 +42,17 @@ const schema = z.object({
     MAILBOX_DAILY_SEND_LIMIT: z.coerce.number().int().positive().default(1500),
     AI_DAILY_CALL_LIMIT: z.coerce.number().int().positive().default(1500),
 
+    EMAIL_LOGO_URL: z.url().optional(),
+    EMAIL_BRAND_COLOR: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour like #06294f")
+        .default("#06294f"),
+    EMAIL_DEMO_URL: z.url().optional(),
+
     WORKER_MODE: z.enum(["timers", "cron"]).default("timers"),
     CRON_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
 });
 
-// Shipped example values that must never reach production.
 const EXAMPLE_PASSWORDS = new Set(["change-me-now"]);
 const MIN_PRODUCTION_ADMIN_PASSWORD = 16;
 
@@ -78,13 +84,13 @@ export interface AppConfig {
         redirectUri: string;
         encryptionKey: Buffer | null;
         syncIntervalMs: number;
-        // "Check for new mail" is skipped when a sync ran this recently (off in tests).
         manualSyncCooldownMs: number;
     };
     gemini: { apiKey: string; model: string; enabled: boolean };
     rateLimit: { perMinute: number; authPerMinute: number; aiPerMinute: number; trustProxy: boolean };
     limits: { userDailySends: number; mailboxDailySends: number; aiDailyCalls: number };
     workers: { mode: "timers" | "cron"; cronSecret: string | null };
+    email: { logoUrl: string | null; brandColor: string; demoUrl: string | null };
 }
 
 // Empty variables count as not set.
@@ -177,5 +183,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
             aiDailyCalls: e.AI_DAILY_CALL_LIMIT,
         },
         workers: { mode: e.WORKER_MODE, cronSecret: e.CRON_SECRET ?? null },
+        email: {
+            logoUrl: e.EMAIL_LOGO_URL ?? null,
+            brandColor: e.EMAIL_BRAND_COLOR,
+            demoUrl: e.EMAIL_DEMO_URL ?? null,
+        },
     };
 }

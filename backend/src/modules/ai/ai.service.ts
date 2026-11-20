@@ -18,6 +18,7 @@ import type { ContactsRepository } from "../contacts/contacts.repository.js";
 import type { KnowledgeService } from "../knowledge/knowledge.js";
 import type { MessageClassification, MessageDoc, ThreadDoc } from "../mail/mail.model.js";
 import type { MailRepository } from "../mail/mail.repository.js";
+import { DEMO_BUTTON_MARKER, renderEmail, type EmailBrand } from "../mail/email-layout.js";
 import type { MailService } from "../mail/mail.service.js";
 import type { OrganizationsRepository } from "../organizations/organizations.repository.js";
 import type { User } from "../users/users.types.js";
@@ -83,6 +84,8 @@ export const toSuggestionDto = (s: SuggestionDoc) => ({
     createdAt: s.createdAt,
 });
 
+const DEMO_BUTTON_RULE = `If inviting them to book a demo, put ${DEMO_BUTTON_MARKER} alone on its own line where a "Book a demo" button should appear (once at most, never with a link).`;
+
 interface Deps {
     model: AiModel;
     models: Models;
@@ -93,6 +96,7 @@ interface Deps {
     mailService: MailService;
     activities: ActivitiesRepository;
     limits: { aiDailyCalls: number };
+    brand: EmailBrand;
     logger: Logger;
     now?: () => Date;
 }
@@ -289,6 +293,7 @@ export class AiService {
             this.threadBlock(messages),
             `TASK: Write follow-up ${step} of ${totalSteps}. The client has not replied to our last email. ${instruction}`,
             "Keep it under 90 words. Do not repeat earlier emails word for word. One clear, low-pressure next step.",
+            DEMO_BUTTON_RULE,
         ].join("\n\n");
         const out = await this.run("compose", null, bodySchema, WRITER_SYSTEM, prompt, 0.6);
         const done = await this.finish(null, out.body, messages.map(visibleText));
@@ -336,6 +341,7 @@ export class AiService {
             this.threadBlock(messages.filter((m) => m.sentAt <= target.sentAt)),
             label,
             "TASK: Write the Dynarock sales team's reply to the client's latest email. Answer what they asked using only KNOWLEDGE, and propose a clear next step (usually a short demo). Also give a one-sentence rationale for the salesperson.",
+            DEMO_BUTTON_RULE,
         ]
             .filter(Boolean)
             .join("\n\n");
@@ -484,6 +490,7 @@ export class AiService {
                 replyToMessageId: suggestion.forMessageId.toHexString(),
                 attachmentFileIds: [],
                 ...input,
+                html: renderEmail(input.html, this.deps.brand),
             });
             await this.deps.models.Suggestion.updateOne(
                 { _id: suggestion._id },

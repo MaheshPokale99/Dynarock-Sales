@@ -110,6 +110,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         knowledge,
         mailService: mail,
         limits: config.limits,
+        brand: config.email,
         logger,
         now,
     });
@@ -119,7 +120,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
         mailService: mail,
         ai,
         locks,
-        config: { apiUrl: config.apiUrl, encryptionKey: config.gmail.encryptionKey },
+        config: { apiUrl: config.apiUrl, encryptionKey: config.gmail.encryptionKey, brand: config.email },
         logger,
         now,
     });

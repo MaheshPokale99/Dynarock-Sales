@@ -18,6 +18,7 @@ import { textToEmailHtml } from "../ai/draft.js";
 import type { AiService } from "../ai/ai.service.js";
 import type { ContactsRepository } from "../contacts/contacts.repository.js";
 import type { Locks } from "../locks/locks.js";
+import { renderEmail, type EmailBrand } from "../mail/email-layout.js";
 import type { MessageDoc, ThreadDoc } from "../mail/mail.model.js";
 import type { MailRepository } from "../mail/mail.repository.js";
 import type { MailService, SendInput } from "../mail/mail.service.js";
@@ -102,7 +103,7 @@ interface Deps {
     ai: AiService;
     activities: ActivitiesRepository;
     locks: Locks;
-    config: { apiUrl: string; encryptionKey: Buffer | null };
+    config: { apiUrl: string; encryptionKey: Buffer | null; brand: EmailBrand };
     logger: Logger;
     now?: () => Date;
 }
@@ -211,7 +212,10 @@ export class AutomationService {
         const { followUp, sendAt, ...mail } = input;
         if (sendAt) return this.scheduleLater(user, mail, sendAt, followUp?.sequenceId);
 
-        const sent = await this.deps.mailService.send(user, mail);
+        const sent = await this.deps.mailService.send(user, {
+            ...mail,
+            html: renderEmail(mail.html, this.deps.config.brand),
+        });
         if (followUp) {
             await this.enroll(user.id, sent.threadId, followUp.sequenceId);
         } else if (mail.mode !== "new") {
@@ -377,11 +381,18 @@ export class AutomationService {
         return this.threadAutomation(enrollment.threadId.toHexString());
     }
 
-    // A client reply (not an auto-reply) stops follow-ups.
+    // A client reply (not an auto-reply) stops follow-ups here and in every other conversation addressed to them.
     async onInbound(threadId: Types.ObjectId, messageId: Types.ObjectId) {
         const message = await this.deps.mail.findMessage(messageId.toHexString());
         if (!message || message.direction !== "inbound" || message.isAutoReply) return;
         await this.stopForThread(threadId, "replied", null);
+        const others: Types.ObjectId[] = await this.deps.models.ScheduledEmail.distinct("threadId", {
+            kind: "follow_up",
+            status: "scheduled",
+            threadId: { $ne: threadId },
+            $or: [{ to: message.from.email }, { cc: message.from.email }],
+        });
+        for (const other of others) await this.stopForThread(other, "replied", null);
     }
 
     // When someone replies by hand, the next follow-up waits its full delay again.
@@ -618,6 +629,109 @@ export class AutomationService {
         await this.deps.models.ScheduledEmail.updateOne({ _id: item._id }, { $set: { status, statusReason: reason } });
     }
 
+    // Puts a claimed follow-up back without counting it as a failed attempt.
+    private async putBack(item: ScheduledEmailDoc, set: Partial<ScheduledEmailDoc>) {
+        await this.deps.models.ScheduledEmail.updateOne(
+            { _id: item._id },
+            { $set: { status: "scheduled", ...set }, $inc: { attempts: -1 } },
+        );
+    }
+
+    private async planStep(item: ScheduledEmailDoc) {
+        if (!item.enrollmentId || !item.step) return null;
+        const enrollment = await this.deps.models.Enrollment.findById(item.enrollmentId).lean<EnrollmentDoc>();
+        const sequence = enrollment
+            ? await this.deps.models.Sequence.findById(enrollment.sequenceId).lean<SequenceDoc>()
+            : null;
+        const step = sequence?.steps[item.step - 1];
+        return sequence && step ? { step, total: sequence.steps.length } : null;
+    }
+
+    // Right before a follow-up goes out, looks at the latest mail with these people in every conversation.
+    // Returns the follow-up to send (reply-to, recipients and AI text refreshed), or null when it must not go now.
+    private async checkLastMail(
+        item: ScheduledEmailDoc,
+        manual: boolean,
+        settings: SettingsDoc,
+    ): Promise<ScheduledEmailDoc | null> {
+        const thread = item.threadId ? await this.deps.mail.findThread(item.threadId.toHexString()) : null;
+        if (!thread) {
+            await this.finish(item, "cancelled", "The conversation no longer exists");
+            return null;
+        }
+        const messages = await this.deps.mail.messagesOf(thread._id);
+        const lastOurs = messages.findLast((m) => m.direction === "outbound");
+        const people = [...new Set([...item.to, ...item.cc].map((e) => e.toLowerCase()))];
+        const [reply, ourLatest] = await Promise.all([
+            this.deps.models.Message.findOne({
+                direction: "inbound",
+                isAutoReply: { $ne: true },
+                "from.email": { $in: people },
+            })
+                .sort({ sentAt: -1 })
+                .lean<MessageDoc>(),
+            this.deps.models.Message.findOne({
+                direction: "outbound",
+                $or: [{ "to.email": { $in: people } }, { "cc.email": { $in: people } }],
+            })
+                .sort({ sentAt: -1 })
+                .lean<MessageDoc>(),
+        ]);
+
+        // They wrote back after our last email here, in this conversation or another one.
+        if (reply && reply.sentAt > (lastOurs?.sentAt ?? item.createdAt)) {
+            const elsewhere = !reply.threadId.equals(thread._id);
+            await this.finish(
+                item,
+                "cancelled",
+                elsewhere ? "The client replied in another conversation" : "The client replied",
+            );
+            await this.stopForThread(thread._id, "replied", null);
+            return null;
+        }
+        // A person pressed "Send now" on what they reviewed; send it as it is.
+        if (manual) return item;
+
+        const plan = await this.planStep(item);
+        // We emailed them after this follow-up was planned (from the app or straight from Gmail): wait the full delay again.
+        if (ourLatest && ourLatest.sentAt > item.createdAt) {
+            const due = ourLatest.sentAt.getTime() + (plan?.step.delayDays ?? 3) * MS_PER_DAY;
+            const sendAt = nextSendSlot(new Date(due), settings.sendWindow);
+            if (sendAt > this.now()) {
+                await this.putBack(item, {
+                    sendAt,
+                    statusReason: "Waiting again: we emailed them after it was planned",
+                });
+                return null;
+            }
+        }
+
+        const update: Partial<ScheduledEmailDoc> = { replyToMessageId: messages.at(-1)?._id ?? item.replyToMessageId };
+        // Someone replied here after it was planned (say, adding a Cc): send to the people on that latest email.
+        if (!item.lastEditedBy && lastOurs && lastOurs.sentAt > item.createdAt) {
+            const mailbox = lastOurs.from.email;
+            const to = lastOurs.to.map((a) => a.email).filter((e) => e !== mailbox);
+            if (to.some((e) => people.includes(e))) {
+                update.to = to;
+                update.cc = lastOurs.cc.map((a) => a.email).filter((e) => e !== mailbox);
+            }
+        }
+        // The conversation moved on since the AI wrote it: write it again from the latest mail.
+        if (item.aiGenerated && !item.lastEditedBy && plan && messages.some((m) => m.sentAt > item.createdAt)) {
+            const content = await this.writeStep(thread, item.step ?? 1, plan.total, plan.step);
+            if (content.ai) {
+                update.html = content.html;
+                const held = holdReason(content.warnings);
+                if (held) {
+                    await this.putBack(item, { ...update, heldReason: held });
+                    return null;
+                }
+            }
+        }
+        await this.deps.models.ScheduledEmail.updateOne({ _id: item._id }, { $set: update });
+        return { ...item, ...update };
+    }
+
     // Returns true when the email went out. `manual` skips the window, cap and pause checks.
     private async deliver(item: ScheduledEmailDoc, manual: boolean): Promise<boolean> {
         const now = this.now();
@@ -650,15 +764,9 @@ export class AutomationService {
             }
         }
         if (isFollowUp && item.threadId) {
-            const thread = await this.deps.mail.findThread(item.threadId.toHexString());
-            const replied = (await this.deps.mail.messagesOf(item.threadId)).some(
-                (m: MessageDoc) => m.direction === "inbound" && !m.isAutoReply && m.sentAt > item.createdAt,
-            );
-            if (!thread || replied) {
-                await this.finish(item, "cancelled", "The client replied");
-                if (thread) await this.stopForThread(thread._id, "replied", null);
-                return false;
-            }
+            const checked = await this.checkLastMail(item, manual, settings);
+            if (!checked) return false;
+            item = checked;
         }
 
         const user = await this.deps.users.findById(item.createdBy.toHexString());
@@ -669,6 +777,12 @@ export class AutomationService {
         }
 
         const unsubscribe = isFollowUp ? await this.unsubscribeUrlForThread(item.threadId) : null;
+        // Follow-ups are written without a signature, so add the sender's like Compose does.
+        const signature = isFollowUp && user.signatureHtml ? `<p>--<br>${user.signatureHtml}</p>` : "";
+        const html = renderEmail(
+            `${item.html}${signature}${unsubscribe ? footer(unsubscribe) : ""}`,
+            this.deps.config.brand,
+        );
         try {
             const sent = await this.deps.mailService.send(
                 user,
@@ -680,7 +794,7 @@ export class AutomationService {
                     cc: item.cc,
                     bcc: item.bcc,
                     subject: item.subject,
-                    html: unsubscribe ? `${item.html}${footer(unsubscribe)}` : item.html,
+                    html,
                     attachmentFileIds: item.attachmentFileIds.map((id) => id.toHexString()),
                 },
                 { origin: isFollowUp ? "app_followup" : "app_scheduled", listUnsubscribe: unsubscribe ?? undefined },
