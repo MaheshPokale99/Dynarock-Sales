@@ -67,15 +67,11 @@ steps:
       - '--cpu-boost'
       - '--execution-environment'
       - 'gen2'
-      # Only the load balancer (api.sales.dynarock.in) reaches the service; outbound goes through Cloud NAT (fixed IP for MongoDB Atlas).
+      # Only the load balancer (api.sales.dynarock.in) reaches the service. Outbound uses Cloud Run's default network,
+      # like dynarock-backend (MongoDB Atlas allows 0.0.0.0/0).
       - '--ingress'
       - 'internal-and-cloud-load-balancing'
-      - '--network'
-      - 'dynarock-vpc'
-      - '--subnet'
-      - 'dynarock-run'
-      - '--vpc-egress'
-      - 'all-traffic'
+      - '--clear-network'
       - '--port'
       - '8080'
       - '--service-account'

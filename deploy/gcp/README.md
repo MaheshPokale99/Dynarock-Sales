@@ -9,7 +9,7 @@ Project `dynarock-backend-2026`, region `asia-south1`. Deploys work like the oth
 | [/cloudbuild.yaml](../../cloudbuild.yaml) | Build → Push (`cloud-run-source-deploy/dynarock-sales/dynarock-sales-api:<commit>`) → Deploy with every setting: container, scaling, networking, env vars, secrets |
 | [/.gcloudignore](../../.gcloudignore) | Keeps `.env` files, `node_modules` and the frontend out of uploads |
 | [trigger.yaml](trigger.yaml) | The trigger `rmgpgab-dynarock-sales-api-…`: push to `main` touching `backend/**` runs `cloudbuild.yaml` |
-| [setup.sh](setup.sh) | One-time: APIs, service accounts, permissions, Cloud NAT |
+| [setup.sh](setup.sh) | One-time: APIs, service accounts, permissions (Cloud NAT only with STATIC_EGRESS=true) |
 | [secrets.sh](secrets.sh) | Uploads secrets from `backend/.env` to Secret Manager |
 | [scheduler.sh](scheduler.sh) | Cron secret + Cloud Scheduler job `dynarock-sales-tick` (Gmail sync and follow-ups every minute) |
 | [domains.sh](domains.sh) | HTTPS load balancer and certificate for `api.sales.dynarock.in` |
@@ -19,7 +19,7 @@ Project `dynarock-backend-2026`, region `asia-south1`. Deploys work like the oth
 push to main ─> Cloud Build trigger ─> cloudbuild.yaml: Build ─> Push ─> Deploy ─> Cloud Run dynarock-sales-api
               (GitHub Actions ci.yml runs lint, typecheck, tests and build on the same push)
 
-api.sales.dynarock.in ─> HTTPS load balancer ─> Cloud Run ─> Cloud NAT (fixed IP) ─> MongoDB Atlas, Gmail, Gemini
+api.sales.dynarock.in ─> HTTPS load balancer ─> Cloud Run ─> MongoDB Atlas (allows 0.0.0.0/0), Gmail, Gemini
 Cloud Scheduler (every minute) ─> POST /internal/tick ─> Gmail sync + due follow-ups + AI labels
 ```
 
@@ -30,7 +30,7 @@ Run the scripts from the repo root in **Git Bash**, signed in with `gcloud auth 
 ## First-time setup
 
 ```bash
-bash deploy/gcp/setup.sh                        # prints the fixed outbound IP for Atlas
+bash deploy/gcp/setup.sh                        # APIs, service accounts, permissions
 bash deploy/gcp/secrets.sh backend/.env         # uploads the secret values
 bash deploy/gcp/scheduler.sh                    # cron secret + every-minute job
 bash deploy/gcp/deploy.sh                       # first deploy (last commit)
@@ -38,7 +38,7 @@ bash deploy/gcp/domains.sh                      # prints the IP for DNS
 bash deploy/gcp/trigger.sh                      # after connecting the repo (below)
 ```
 
-1. **MongoDB Atlas → Network Access:** add the IP that `setup.sh` printed, as `/32`.
+1. **MongoDB Atlas → Network Access:** allows `0.0.0.0/0`, shared with `dynarock-backend` on the same cluster. To allow only specific IPs instead, set `STATIC_EGRESS=true` in `config.env`, run `setup.sh` (creates Cloud NAT with one fixed IP, ~$5/month), add that IP in Atlas, and replace `--clear-network` in `cloudbuild.yaml` with `--network dynarock-vpc --subnet dynarock-run --vpc-egress all-traffic`.
 2. **Connect the GitHub repo to Cloud Build (once, in the browser):** open [Cloud Build → Triggers → Connect repository](https://console.cloud.google.com/cloud-build/triggers;region=global/connect?project=dynarock-backend-2026). Choose **GitHub (Cloud Build GitHub App)**, select `MaheshPokale99/Dynarock-Sales`, skip creating a trigger, then run `trigger.sh`.
 3. **DNS:** point `api.sales` (A record) to the IP that `domains.sh` printed. The certificate turns `ACTIVE` 15–60 minutes later.
 4. **Google OAuth client:** check that `https://api.sales.dynarock.in/api/v1/mailbox/oauth/callback` is an authorized redirect URI.
