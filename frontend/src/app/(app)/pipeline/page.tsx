@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/common/page-header";
 import { PipelinePage } from "@/features/pipeline/pipeline-page";
 
 export const metadata: Metadata = { title: "Pipeline" };
+export const instant = false;
 
 export default function Page() {
     return (

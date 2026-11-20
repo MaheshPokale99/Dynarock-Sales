@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/common/page-header";
 import { ApprovalsPage } from "@/features/approvals/approvals-page";
 
 export const metadata: Metadata = { title: "Approvals" };
+export const instant = false;
 
 export default function Page() {
     return (

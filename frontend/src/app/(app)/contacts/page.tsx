@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/common/page-header";
 import { ContactsPage } from "@/features/contacts/contacts-page";
 
 export const metadata: Metadata = { title: "Contacts" };
+export const instant = false;
 
 export default function Page() {
     return (

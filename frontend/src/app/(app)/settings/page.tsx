@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { SettingsPage } from "@/features/settings/settings-page";
 
 export const metadata: Metadata = { title: "Settings" };
+export const instant = false;
 
 export default function Page() {
     return (

@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/common/page-header";
 import { KnowledgePage } from "@/features/knowledge/knowledge-page";
 
 export const metadata: Metadata = { title: "Knowledge" };
+export const instant = false;
 
 export default function Page() {
     return (

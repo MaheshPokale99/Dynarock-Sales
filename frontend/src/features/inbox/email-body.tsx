@@ -60,14 +60,16 @@ export function EmailBody({ html }: { html: string }) {
 
     return (
         <div>
-            <iframe
-                ref={ref}
-                title="Email content"
-                sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                srcDoc={frameDoc(clean, hasQuotes && !showQuotes)}
-                className="w-full rounded-md bg-white"
-                style={{ height }}
-            />
+            <div className="rounded-md bg-white dark:p-3">
+                <iframe
+                    ref={ref}
+                    title="Email content"
+                    sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    srcDoc={frameDoc(clean, hasQuotes && !showQuotes)}
+                    className="block w-full bg-white"
+                    style={{ height }}
+                />
+            </div>
             {hasQuotes && (
                 <Button
                     variant="ghost"

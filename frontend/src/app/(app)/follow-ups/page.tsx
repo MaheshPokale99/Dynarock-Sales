@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/common/page-header";
 import { FollowUpsPage } from "@/features/followups/followups-page";
 
 export const metadata: Metadata = { title: "Follow-ups" };
+export const instant = false;
 
 export default function Page() {
     return (
