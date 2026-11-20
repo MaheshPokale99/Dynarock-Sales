@@ -41,6 +41,9 @@ const schema = z.object({
     USER_DAILY_SEND_LIMIT: z.coerce.number().int().positive().default(200),
     MAILBOX_DAILY_SEND_LIMIT: z.coerce.number().int().positive().default(1500),
     AI_DAILY_CALL_LIMIT: z.coerce.number().int().positive().default(1500),
+
+    WORKER_MODE: z.enum(["timers", "cron"]).default("timers"),
+    CRON_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
 });
 
 // Shipped example values that must never reach production.
@@ -75,10 +78,13 @@ export interface AppConfig {
         redirectUri: string;
         encryptionKey: Buffer | null;
         syncIntervalMs: number;
+        // "Check for new mail" is skipped when a sync ran this recently (off in tests).
+        manualSyncCooldownMs: number;
     };
     gemini: { apiKey: string; model: string; enabled: boolean };
     rateLimit: { perMinute: number; authPerMinute: number; aiPerMinute: number; trustProxy: boolean };
     limits: { userDailySends: number; mailboxDailySends: number; aiDailyCalls: number };
+    workers: { mode: "timers" | "cron"; cronSecret: string | null };
 }
 
 // Empty variables count as not set.
@@ -112,6 +118,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
         throw new Error(
             `Invalid environment configuration:\n  BOOTSTRAP_ADMIN_PASSWORD must be your own password of at least ${MIN_PRODUCTION_ADMIN_PASSWORD} characters in production`,
         );
+    }
+
+    if (e.WORKER_MODE === "cron" && !e.CRON_SECRET) {
+        throw new Error("Invalid environment configuration:\n  CRON_SECRET is required when WORKER_MODE=cron");
     }
 
     const googleSet = Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
@@ -152,6 +162,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
             redirectUri: e.GOOGLE_REDIRECT_URI ?? `http://localhost:${e.PORT}/api/v1/mailbox/oauth/callback`,
             encryptionKey: e.ENCRYPTION_KEY ? Buffer.from(e.ENCRYPTION_KEY, "base64") : null,
             syncIntervalMs: e.GMAIL_SYNC_INTERVAL_SECONDS * 1000,
+            manualSyncCooldownMs: e.NODE_ENV === "test" ? 0 : 15_000,
         },
         gemini: { apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL, enabled: e.GEMINI_API_KEY.length > 0 },
         rateLimit: {
@@ -165,5 +176,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
             mailboxDailySends: e.MAILBOX_DAILY_SEND_LIMIT,
             aiDailyCalls: e.AI_DAILY_CALL_LIMIT,
         },
+        workers: { mode: e.WORKER_MODE, cronSecret: e.CRON_SECRET ?? null },
     };
 }

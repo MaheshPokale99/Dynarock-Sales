@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Creates the Cloud Build trigger from trigger.yaml. Safe to re-run.
+# Creates the Cloud Run continuous deployment trigger from trigger.yaml, then stores its id in _TRIGGER_ID. Safe to re-run.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-TRIGGER=dynarock-sales-api-deploy
+TRIGGER="$(sed -n 's/^name: //p' "$DIR/trigger.yaml" | tr -d '\r')"
 
 if exists gcloud builds triggers describe "$TRIGGER" --region global; then
     log "Replacing trigger $TRIGGER"
     gcloud builds triggers delete "$TRIGGER" --region global
 fi
 
-log "Creating trigger $TRIGGER for $GITHUB_REPO"
-if ! gcloud builds triggers import --source deploy/gcp/trigger.yaml --region global; then
+log "Creating trigger $TRIGGER for $GITHUB_REPO (push to main)"
+if ! gcloud builds triggers import --source deploy/gcp/trigger.yaml --region global >/dev/null; then
     cat <<EOF
 
 Cloud Build can't see $GITHUB_REPO yet. Connect it once in the console:
@@ -21,4 +21,8 @@ EOF
     exit 1
 fi
 
-log "Done. GitHub Actions runs $TRIGGER after every check passes on $DEPLOY_BRANCH."
+id="$(value gcloud builds triggers describe "$TRIGGER" --region global --format='value(id)')"
+gcloud builds triggers update github "$TRIGGER" --region global --update-substitutions "_TRIGGER_ID=$id" >/dev/null
+
+log "Done. Pushes to main that change backend/ now deploy $API_SERVICE (trigger id $id)."
+echo "Run it by hand: gcloud builds triggers run $TRIGGER --region global --branch main"

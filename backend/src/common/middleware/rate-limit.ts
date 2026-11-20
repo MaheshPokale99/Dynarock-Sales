@@ -17,13 +17,13 @@ interface Window {
     resetAt: number;
 }
 
-// Hard cap on tracked keys so a flood of distinct clients can't grow memory without limit.
 const MAX_KEYS = 50_000;
 
-// Behind a proxy, the last X-Forwarded-For entry is the one our own proxy added; earlier ones are client-supplied.
+const lastEntry = (value: string | undefined) => value?.split(",").at(-1)?.trim() || undefined;
+
 export function clientAddress(c: Context<AppEnv>, trustProxy: boolean): string {
     if (trustProxy) {
-        const forwarded = c.req.header("x-forwarded-for")?.split(",").at(-1)?.trim();
+        const forwarded = lastEntry(c.req.header("x-client-ip")) ?? lastEntry(c.req.header("x-forwarded-for"));
         if (forwarded) return forwarded;
     }
     try {

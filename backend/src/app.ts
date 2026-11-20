@@ -13,6 +13,7 @@ import { requestContext } from "./common/middleware/request-context.js";
 import type { Container } from "./container.js";
 import { sessionMiddleware } from "./modules/auth/auth.middleware.js";
 import { createUnsubscribeRoutes } from "./modules/automation/unsubscribe.js";
+import { createCronRoutes } from "./modules/system/cron.routes.js";
 import { createProbeRoutes } from "./modules/system/system.routes.js";
 import { createV1Routes } from "./routes/v1.js";
 
@@ -51,6 +52,7 @@ export function createApp(container: Container) {
 
     app.route(API_PREFIX, createV1Routes(container));
     app.route("/", createProbeRoutes(controllers.system));
+    app.route("/", createCronRoutes(container));
     app.route("/", createUnsubscribeRoutes(services.automation));
 
     app.notFound(notFoundHandler);

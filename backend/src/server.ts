@@ -57,16 +57,20 @@ server.on("error", (error: NodeJS.ErrnoException) => {
 
 if (!config.gemini.enabled) logger.warn("GEMINI_API_KEY is not set: AI features are disabled");
 
-const stopSync = config.gmail.enabled
+if (!config.gmail.enabled) logger.warn("GOOGLE_CLIENT_ID is not set: the Gmail mailbox can't be connected");
+if (config.workers.mode === "cron") logger.info("Background work runs on POST /internal/tick (WORKER_MODE=cron)");
+const timers = config.gmail.enabled && config.workers.mode === "timers";
+
+const stopSync = timers
     ? startMailSyncWorker({
           sync: container.services.sync,
           mailbox: container.services.mailbox,
           intervalMs: config.gmail.syncIntervalMs,
           logger,
       })
-    : (logger.warn("GOOGLE_CLIENT_ID is not set: the Gmail mailbox can't be connected"), () => undefined);
+    : () => undefined;
 
-const stopAutomation = config.gmail.enabled
+const stopAutomation = timers
     ? startAutomationWorker({ automation: container.services.automation, intervalMs: 60_000, logger })
     : () => undefined;
 

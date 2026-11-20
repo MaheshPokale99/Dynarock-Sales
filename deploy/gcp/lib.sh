@@ -11,7 +11,6 @@ export CLOUDSDK_CORE_DISABLE_PROMPTS=1
 
 API_SA="dynarock-sales-api@$PROJECT_ID.iam.gserviceaccount.com"
 BUILD_SA="dynarock-sales-build@$PROJECT_ID.iam.gserviceaccount.com"
-GITHUB_SA="dynarock-sales-github@$PROJECT_ID.iam.gserviceaccount.com"
 BUILD_BUCKET="$PROJECT_ID-build-src"
 REGISTRY="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO"
 
@@ -22,7 +21,7 @@ ROUTER=dynarock-router
 NAT=dynarock-nat
 NAT_IP=dynarock-nat-ip
 
-SECRET_KEYS=(MONGODB_URI ENCRYPTION_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GEMINI_API_KEY BOOTSTRAP_ADMIN_PASSWORD)
+SECRET_KEYS=(MONGODB_URI ENCRYPTION_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GEMINI_API_KEY BOOTSTRAP_ADMIN_PASSWORD CRON_SECRET)
 
 log() { printf '\n==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }

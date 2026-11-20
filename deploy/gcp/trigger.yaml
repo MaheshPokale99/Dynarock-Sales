@@ -1,16 +1,27 @@
-# Cloud Build trigger, imported by trigger.sh. Disabled on purpose: it never fires on its own.
-# .github/workflows/backend-deploy.yml runs it for a specific commit after every GitHub check passes.
-name: dynarock-sales-api-deploy
-description: Deploys dynarock-sales-api from cloudbuild.yaml. Started by GitHub Actions after checks pass.
-disabled: true
+# Cloud Run continuous deployment trigger (same shape as the console-created ones in this project). Imported by trigger.sh.
+name: rmgpgab-dynarock-sales-api-asia-south1-MaheshPokale99-Dynarsal
+description: Build and deploy to Cloud Run service dynarock-sales-api on push to "^main$"
 filename: cloudbuild.yaml
 github:
   owner: MaheshPokale99
-  name: admission-detective-api
+  name: Dynarock-Sales
   push:
     branch: ^main$
 includedFiles:
   - backend/**
   - cloudbuild.yaml
   - .gcloudignore
+includeBuildLogs: INCLUDE_BUILD_LOGS_WITH_STATUS
 serviceAccount: projects/dynarock-backend-2026/serviceAccounts/dynarock-sales-build@dynarock-backend-2026.iam.gserviceaccount.com
+substitutions:
+  REPO_NAME: dynarock-sales
+  _AR_HOSTNAME: asia-south1-docker.pkg.dev
+  _AR_PROJECT_ID: dynarock-backend-2026
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _DEPLOY_REGION: asia-south1
+  _PLATFORM: managed
+  _SERVICE_NAME: dynarock-sales-api
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - dynarock-sales-api
