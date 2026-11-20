@@ -18,6 +18,7 @@ import { whenLabel } from "@/lib/datetime";
 import { fileSize, isEmail } from "@/lib/mail-format";
 import { cn } from "@/lib/utils";
 import { AiAssist, type AiResult } from "./ai-assist";
+import { EmailPreview } from "./email-preview";
 import { RecipientInput } from "./recipient-input";
 import { RichEditor } from "./rich-editor";
 import { FollowUpToggle, ScheduleMenu, type FollowUpChoice } from "./send-options";
@@ -354,6 +355,7 @@ export function ComposeForm({
                     </Button>
                     <ScheduleMenu onPick={(at) => submit(at)} disabled={send.isPending || uploading > 0} />
                 </div>
+                <EmailPreview html={html} disabled={send.isPending} />
                 <input
                     ref={fileInput}
                     type="file"

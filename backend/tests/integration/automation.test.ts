@@ -389,6 +389,10 @@ describe("last-mail check before a follow-up goes out", () => {
         });
         await c.post("/mailbox/sync");
 
+        assert.equal(await automation().runDue(), 0);
+        const [item] = (await c.get("/scheduled-emails?status=scheduled")).body;
+        assert.ok(new Date(item.sendAt).getTime() - clock.now.getTime() > 2.9 * DAY, "the new date shows right away");
+
         later(1.5);
         assert.equal(await automation().runDue(), 0, "the follow-up waits 3 days from the Gmail email");
         later(2);
@@ -424,5 +428,16 @@ describe("last-mail check before a follow-up goes out", () => {
         assert.match(html, /data-layout="dynarock"/);
         assert.match(html, /Sales, Dynarock/);
         assert.equal(html.match(/data-layout="dynarock"/g)?.length, 1, "wrapped once");
+    });
+});
+
+describe("email preview", () => {
+    it("shows the email in the Dynarock layout", async () => {
+        const { c } = await setup();
+        const res = await c.post("/emails/preview", { html: "<p>Hello</p><p>[[BOOK_DEMO]]</p>" });
+        assert.equal(res.status, 200);
+        assert.match(res.body.html, /data-layout="dynarock"/);
+        assert.match(res.body.html, /<p>Hello<\/p>/);
+        assert.doesNotMatch(res.body.html, /BOOK_DEMO/, "no demo link configured, so no button");
     });
 });

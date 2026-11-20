@@ -67,6 +67,7 @@ const listQuery = z.object({
     kind: z.enum(["follow_up", "send_later"]).optional(),
     threadId: objectId.optional(),
 });
+const previewBody = z.object({ html: z.string().max(500_000) });
 const enrollBody = z.object({ sequenceId: objectId });
 const enrollmentAction = z.object({ id: objectId, action: z.enum(["stop", "pause", "resume"]) });
 
@@ -75,6 +76,8 @@ export class AutomationController {
 
     send = async (c: Context<AppEnv>) =>
         c.json(await this.service.composeSend(currentAuth(c).user, await parseBody(c, composeBody)), 201);
+
+    preview = async (c: Context<AppEnv>) => c.json(this.service.preview((await parseBody(c, previewBody)).html));
 
     settings = async (c: Context<AppEnv>) => c.json(await this.service.settings());
 
@@ -144,6 +147,7 @@ export class AutomationController {
 export const createAutomationRoutes = (controller: AutomationController) =>
     new Hono<AppEnv>()
         .post("/emails/send", requireAuth, controller.send)
+        .post("/emails/preview", requireAuth, controller.preview)
         .get("/automation/settings", requireAuth, controller.settings)
         .patch("/automation/settings", requireRole("admin"), controller.updateSettings)
         .get("/sequences", requireAuth, controller.sequences)

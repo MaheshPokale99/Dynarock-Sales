@@ -38,6 +38,7 @@ import { inWindow, nextSendSlot, startOfLocalDay } from "./send-window.js";
 const SETTINGS_ID = "global";
 const LOCK = "automation";
 const BATCH = 20;
+const REALIGN_BATCH = 500;
 const MIN_LEAD_MS = 5 * MS_PER_MINUTE;
 const UNSUBSCRIBE_TTL_MS = 2 * 365 * MS_PER_DAY;
 const FALLBACK_TEXT =
@@ -206,6 +207,11 @@ export class AutomationService {
     }
 
     // ---------- sending from Compose ----------
+
+    // The email as recipients will see it, for the Compose preview.
+    preview(html: string) {
+        return { html: renderEmail(html, this.deps.config.brand) };
+    }
 
     // Sends now or later, and optionally starts follow-ups.
     async composeSend(user: User, input: ComposeSendInput) {
@@ -589,6 +595,7 @@ export class AutomationService {
     async runDue(): Promise<number> {
         return (
             (await this.deps.locks.withLock(LOCK, 5 * MS_PER_MINUTE, async () => {
+                await this.realignAfterOurMail();
                 const due = await this.deps.models.ScheduledEmail.find({
                     status: "scheduled",
                     heldReason: { $in: ["", null] },
@@ -627,6 +634,34 @@ export class AutomationService {
 
     private async finish(item: ScheduledEmailDoc, status: "cancelled" | "skipped" | "failed", reason: string) {
         await this.deps.models.ScheduledEmail.updateOne({ _id: item._id }, { $set: { status, statusReason: reason } });
+    }
+
+    // We emailed someone after their follow-up was planned (from the app or straight from Gmail):
+    // move it to that email plus the step's delay, so the Follow-ups page shows the real date right away.
+    private async realignAfterOurMail() {
+        const pending = await this.deps.models.ScheduledEmail.find({ kind: "follow_up", status: "scheduled" })
+            .limit(REALIGN_BATCH)
+            .lean<ScheduledEmailDoc[]>();
+        if (pending.length === 0) return;
+        const settings = await this.settingsDoc();
+        for (const item of pending) {
+            const people = [...new Set([...item.to, ...item.cc].map((e) => e.toLowerCase()))];
+            const ours = await this.deps.models.Message.findOne({
+                direction: "outbound",
+                sentAt: { $gt: item.createdAt },
+                $or: [{ "to.email": { $in: people } }, { "cc.email": { $in: people } }],
+            })
+                .sort({ sentAt: -1 })
+                .lean<MessageDoc>();
+            if (!ours) continue;
+            const delay = (await this.planStep(item))?.step.delayDays ?? 3;
+            const sendAt = nextSendSlot(new Date(ours.sentAt.getTime() + delay * MS_PER_DAY), settings.sendWindow);
+            if (sendAt <= item.sendAt) continue;
+            await this.deps.models.ScheduledEmail.updateOne(
+                { _id: item._id, status: "scheduled" },
+                { $set: { sendAt, statusReason: "Waiting again: we emailed them after it was planned" } },
+            );
+        }
     }
 
     // Puts a claimed follow-up back without counting it as a failed attempt.

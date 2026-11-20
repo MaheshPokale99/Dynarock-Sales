@@ -111,6 +111,7 @@ export const api = {
 
     emails: {
         send: (body: SendInput) => post<SendResult>("/emails/send", body),
+        preview: (html: string) => post<{ html: string }>("/emails/preview", { html }),
         attachmentUrl: (messageId: string, index: number) => `${API_BASE}/messages/${messageId}/attachments/${index}`,
     },
 
