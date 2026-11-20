@@ -90,7 +90,8 @@ export class MailService {
         const thread = await this.requireThread(threadId);
         const messages = await this.deps.mail.messagesOf(thread._id, true);
         const contacts = await this.deps.contacts.forThread(thread.contactIds ?? []);
-        return { thread: toThreadDto(thread), messages: messages.map(toMessageDto), contacts };
+        const { version } = await this.deps.mail.counts();
+        return { thread: toThreadDto(thread), messages: messages.map(toMessageDto), contacts, version };
     }
 
     async update(threadId: string, patch: { unread?: boolean; closed?: boolean }) {

@@ -148,12 +148,13 @@ export class MailRepository {
         });
     }
 
-    async counts(): Promise<Record<"needs_reply" | "unread", number>> {
-        const [needsReply, unread] = await Promise.all([
+    async counts(): Promise<{ needs_reply: number; unread: number; version: string | null }> {
+        const [needsReply, unread, latest] = await Promise.all([
             this.models.Thread.countDocuments({ state: "needs_reply" }),
             this.models.Thread.countDocuments({ unread: true }),
+            this.models.Thread.findOne().sort({ updatedAt: -1 }).select("updatedAt").lean<{ updatedAt: Date }>(),
         ]);
-        return { needs_reply: needsReply, unread };
+        return { needs_reply: needsReply, unread, version: latest?.updatedAt.toISOString() ?? null };
     }
 
     async recipientSuggestions(q: string, limit: number): Promise<{ email: string; name: string }[]> {

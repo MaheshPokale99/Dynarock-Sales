@@ -90,7 +90,7 @@ export function FollowUpsPage() {
                 </Alert>
             )}
             <Tabs value={tab} onValueChange={(v) => setTab(v as string)}>
-                <TabsList className="flex-wrap">
+                <TabsList className="max-w-full justify-start overflow-x-auto">
                     <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
                     <TabsTrigger value="sent">Sent</TabsTrigger>
                     <TabsTrigger value="cancelled">Stopped</TabsTrigger>

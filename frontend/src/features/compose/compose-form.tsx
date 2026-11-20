@@ -111,25 +111,33 @@ export function ComposeForm({
 
     useEffect(() => onSubjectChange?.(subject), [subject, onSubjectChange]);
 
-    // Autosave as a draft shortly after the user stops typing.
+    const draftRef = useRef(init.draftId);
+    const lastSaved = useRef("");
+    const saving = useRef<Promise<unknown>>(Promise.resolve());
     useEffect(() => {
         if (!dirty.current || sent.current) return;
         const timer = setTimeout(() => {
             const body = { mode: init.mode, threadId: init.threadId ?? null, to, cc, bcc, subject, html, attachments };
-            setSaveState("saving");
-            const save = draftId ? api.drafts.update(draftId, body) : api.drafts.create(body);
-            save.then(
-                (d) => {
+            const snapshot = JSON.stringify(body);
+            saving.current = saving.current.then(async () => {
+                if (sent.current || snapshot === lastSaved.current) return;
+                setSaveState("saving");
+                try {
+                    const id = draftRef.current;
+                    const d = id ? await api.drafts.update(id, body) : await api.drafts.create(body);
+                    lastSaved.current = snapshot;
+                    draftRef.current = d.id;
                     if (!sent.current) {
                         setDraftId(d.id);
                         setSaveState("saved");
                     }
-                },
-                () => setSaveState("idle"),
-            );
+                } catch {
+                    setSaveState("idle");
+                }
+            });
         }, AUTOSAVE_MS);
         return () => clearTimeout(timer);
-    }, [to, cc, bcc, subject, html, attachments, draftId, init.mode, init.threadId]);
+    }, [to, cc, bcc, subject, html, attachments, init.mode, init.threadId]);
 
     const touch =
         <T,>(setter: (v: T) => void) =>
@@ -174,6 +182,7 @@ export function ComposeForm({
             return;
         }
         const planId = followUp.enabled ? (followUp.planId ?? defaultPlanId) : null;
+        const sentDraftId = draftRef.current;
         send.mutate(
             {
                 mode: init.mode,
@@ -185,13 +194,17 @@ export function ComposeForm({
                 subject,
                 html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${html}${includeQuote && init.quoteHtml ? init.quoteHtml : ""}</div>`,
                 attachmentFileIds: attachments.map((a) => a.fileId),
-                draftId,
+                draftId: sentDraftId,
                 followUp: planId ? { sequenceId: planId } : null,
                 sendAt,
             },
             {
                 onSuccess: (result) => {
                     sent.current = true;
+                    void saving.current.then(() => {
+                        if (draftRef.current && draftRef.current !== sentDraftId)
+                            void api.drafts.remove(draftRef.current).catch(() => undefined);
+                    });
                     if (result.scheduled && result.sendAt) {
                         toast.success(`Scheduled for ${whenLabel(result.sendAt)}`, {
                             action: { label: "Follow-ups", onClick: () => router.push("/follow-ups") },
@@ -213,7 +226,9 @@ export function ComposeForm({
 
     const discard = () => {
         sent.current = true;
-        if (draftId) void api.drafts.remove(draftId).catch(() => undefined);
+        void saving.current.then(() => {
+            if (draftRef.current) void api.drafts.remove(draftRef.current).catch(() => undefined);
+        });
         onDone();
     };
 
@@ -340,7 +355,14 @@ export function ComposeForm({
                 </div>
             )}
 
-            {init.mode !== "forward" && <FollowUpToggle value={followUp} onChange={setFollowUp} plans={activePlans} />}
+            {init.mode !== "forward" && (
+                <FollowUpToggle
+                    value={followUp}
+                    onChange={setFollowUp}
+                    plans={activePlans}
+                    defaultPlanId={defaultPlanId}
+                />
+            )}
 
             <div className="flex flex-wrap items-center gap-1 border-t px-2 py-2">
                 <div className="flex">

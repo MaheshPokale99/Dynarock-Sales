@@ -1,13 +1,14 @@
 "use client";
 
-import { Archive, ArchiveRestore, ArrowLeft, Forward, MailOpen, Reply, ReplyAll, Sparkles } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Forward, MailOpen, Reply, ReplyAll, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { IntentBadge } from "@/components/common/intent-badge";
 import { ErrorState } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -58,11 +59,13 @@ export function ThreadView({
     const messages = data?.messages ?? [];
     const lastId = messages.at(-1)?.id;
 
-    // Opening an unread conversation marks it read.
+    const autoRead = useRef(false);
     useEffect(() => {
-        if (thread?.unread) update.mutate({ id: thread.id, unread: false });
+        if (!thread || autoRead.current) return;
+        autoRead.current = true;
+        if (thread.unread) update.mutate({ id: thread.id, unread: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [thread?.id, thread?.unread]);
+    }, [thread?.id]);
 
     if (isError) return <ErrorState message={errorMessage(error)} onRetry={() => void refetch()} />;
     if (isPending || !thread) {
@@ -127,6 +130,28 @@ export function ThreadView({
                     )}
                 </div>
                 <div className="flex shrink-0 items-center">
+                    {(data?.contacts.length ?? 0) > 0 && (
+                        <Sheet>
+                            <SheetTrigger
+                                render={
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        className="xl:hidden"
+                                        aria-label="Contacts in this conversation"
+                                    />
+                                }
+                            >
+                                <Users aria-hidden />
+                            </SheetTrigger>
+                            <SheetContent side="right" className="w-[min(20rem,90vw)] overflow-y-auto">
+                                <SheetHeader>
+                                    <SheetTitle>Contacts</SheetTitle>
+                                </SheetHeader>
+                                <ContactPanel contacts={data?.contacts ?? []} inSheet />
+                            </SheetContent>
+                        </Sheet>
+                    )}
                     <IconAction label="Mark as unread" onClick={() => run({ unread: true }, "Marked as unread")}>
                         <MailOpen aria-hidden />
                     </IconAction>
@@ -145,8 +170,8 @@ export function ThreadView({
                 </div>
             </header>
 
-            <div className="flex min-h-0 flex-1">
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex min-h-0 min-w-0 flex-1">
+                <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto p-4">
                     {messages.map((m) => (
                         <MessageCard
                             key={m.id}

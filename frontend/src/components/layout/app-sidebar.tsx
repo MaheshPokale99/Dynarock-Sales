@@ -47,7 +47,9 @@ export function AppSidebar({ user }: { user: User }) {
                             render={<Link href={HOME_PATH} />}
                             onClick={close}
                         >
-                            <BrandMark />
+                            <span className="flex aspect-square size-8 shrink-0 items-center justify-center text-brand">
+                                <BrandMark className="size-7!" />
+                            </span>
                             <span className="grid flex-1 text-left leading-tight">
                                 <span className="truncate text-sm font-semibold">{APP_NAME}</span>
                                 <span className="truncate text-xs text-muted-foreground">{APP_TAGLINE}</span>

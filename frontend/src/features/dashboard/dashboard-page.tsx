@@ -23,7 +23,7 @@ function Tiles({ data }: { data: Dashboard }) {
     const { kpis, range } = data;
     const d = range.days;
     return (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
                 label="Emails sent"
                 metric={kpis.emailsSent}
@@ -176,12 +176,12 @@ function TeamTable({ data }: { data: Dashboard }) {
                     <TableRow>
                         <TableHead className="pl-6">Salesperson</TableHead>
                         <TableHead className="text-right">Emails</TableHead>
-                        <TableHead className="text-right">Follow-ups</TableHead>
-                        <TableHead className="hidden text-right md:table-cell">Conversations started</TableHead>
+                        <TableHead className="hidden text-right sm:table-cell">Follow-ups</TableHead>
+                        <TableHead className="hidden text-right xl:table-cell">Conversations started</TableHead>
                         <TableHead className="text-right">Reply rate</TableHead>
-                        <TableHead className="text-right">Demos</TableHead>
+                        <TableHead className="hidden text-right sm:table-cell">Demos</TableHead>
                         <TableHead className="text-right">Won</TableHead>
-                        <TableHead className="hidden pr-6 text-right lg:table-cell">AI replies approved</TableHead>
+                        <TableHead className="hidden pr-6 text-right xl:table-cell">AI replies approved</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -189,16 +189,20 @@ function TeamTable({ data }: { data: Dashboard }) {
                         <TableRow key={t.userId} className={t.disabled ? "opacity-60" : undefined}>
                             <TableCell className="pl-6 font-medium">{t.name}</TableCell>
                             <TableCell className="text-right tabular-nums">{t.emailsSent}</TableCell>
-                            <TableCell className="text-right tabular-nums">{t.followUpsSent}</TableCell>
-                            <TableCell className="hidden text-right tabular-nums md:table-cell">
+                            <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                                {t.followUpsSent}
+                            </TableCell>
+                            <TableCell className="hidden text-right tabular-nums xl:table-cell">
                                 {t.conversationsStarted}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                                 {t.replyRate === null ? "—" : `${t.replyRate}%`}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums">{t.demosBooked}</TableCell>
+                            <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                                {t.demosBooked}
+                            </TableCell>
                             <TableCell className="text-right tabular-nums">{t.won}</TableCell>
-                            <TableCell className="hidden pr-6 text-right tabular-nums lg:table-cell">
+                            <TableCell className="hidden pr-6 text-right tabular-nums xl:table-cell">
                                 {t.aiRepliesApproved}
                             </TableCell>
                         </TableRow>

@@ -1,10 +1,11 @@
+import { decodeEntities } from "../../integrations/gmail/mime.js";
 import type { MessageDoc, ThreadDoc } from "./mail.model.js";
 
 export const toThreadDto = (t: ThreadDoc) => ({
     id: t._id.toHexString(),
     subject: t.subject,
     participants: t.participants,
-    snippet: t.snippet,
+    snippet: decodeEntities(t.snippet),
     messageCount: t.messageCount,
     lastMessageAt: t.lastMessageAt,
     lastMessageDirection: t.lastMessageDirection,
@@ -19,6 +20,7 @@ export const toThreadDto = (t: ThreadDoc) => ({
     organizationId: t.organizationId?.toHexString() ?? null,
     latestIntent: t.latestIntent ?? null,
     aiSummary: t.aiSummary ?? "",
+    updatedAt: t.updatedAt,
 });
 
 export const toMessageDto = (m: MessageDoc) => ({
@@ -30,7 +32,7 @@ export const toMessageDto = (m: MessageDoc) => ({
     bcc: m.bcc,
     subject: m.subject,
     html: m.html,
-    snippet: m.snippet,
+    snippet: decodeEntities(m.snippet),
     attachments: m.attachments.map((a, index) => ({ index, filename: a.filename, mimeType: a.mimeType, size: a.size })),
     sentAt: m.sentAt,
     sentByUserId: m.sentByUserId?.toHexString() ?? null,

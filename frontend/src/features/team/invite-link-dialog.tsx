@@ -33,7 +33,7 @@ export function InviteLinkDialog({ invitation, onClose }: { invitation: Invitati
 
     return (
         <Dialog open={invitation !== null} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Invite link for {invitation?.user.name}</DialogTitle>
                     <DialogDescription>

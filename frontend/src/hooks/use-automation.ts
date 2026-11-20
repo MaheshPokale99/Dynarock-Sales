@@ -21,7 +21,6 @@ export const useThreadAutomation = (threadId: string) =>
     useQuery({
         queryKey: automationKeys.thread(threadId),
         queryFn: () => api.automation.forThread(threadId),
-        refetchInterval: 60_000,
     });
 
 export const useScheduled = (p: { status?: ScheduledStatus; kind?: "follow_up" | "send_later" }) =>

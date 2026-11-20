@@ -140,7 +140,9 @@ describe("sending and receiving", () => {
         const inbox = (await client.get("/threads?folder=needs_reply")).body;
         assert.equal(inbox.threads.length, 1);
         assert.equal(inbox.counts.needs_reply, 1);
-        assert.deepEqual((await client.get("/threads/counts")).body, { needs_reply: 1, unread: 1 });
+        const counts = (await client.get("/threads/counts")).body;
+        assert.deepEqual({ needs_reply: counts.needs_reply, unread: counts.unread }, { needs_reply: 1, unread: 1 });
+        assert.ok(counts.version, "counts say when mail last changed");
 
         const reply = await client.post("/emails/send", {
             mode: "reply",
@@ -211,6 +213,27 @@ describe("sending and receiving", () => {
 
         const closed = await client.patch(`/threads/${list.threads[0].id}`, { closed: true });
         assert.equal(closed.body.state, "closed");
+    });
+
+    it("moves the counts version only when a conversation changes", async () => {
+        const { client } = await connectedTeam();
+        const before = (await client.get("/threads/counts")).body.version;
+        assert.equal((await client.get("/threads/counts")).body.version, before, "nothing changed");
+        gmail.deliver({ from: PRINCIPAL, subject: "Question", text: "Hi" });
+        await client.post("/mailbox/sync");
+        const after = (await client.get("/threads/counts")).body.version;
+        assert.ok(after && (!before || after > before));
+        const thread = (await client.get("/threads?folder=all")).body.threads[0];
+        assert.equal((await client.get(`/threads/${thread.id}`)).body.version, after);
+    });
+
+    it("skips a manual sync that comes right after another", async () => {
+        await connectedTeam();
+        const sync = stack.container.services.sync;
+        await sync.syncNow();
+        gmail.deliver({ from: PRINCIPAL, subject: "Later", text: "x" });
+        assert.deepEqual(await sync.syncNow({ minIntervalMs: 60_000 }), { added: 0, skipped: true });
+        assert.equal((await sync.syncNow())?.added, 1);
     });
 
     it("suggests recipients from past conversations", async () => {

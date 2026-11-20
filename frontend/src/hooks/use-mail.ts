@@ -1,7 +1,15 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type SendInput, type ThreadFolder } from "@/lib/api";
+import {
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type InfiniteData,
+    type Query,
+} from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { api, type SendInput, type ThreadDetail, type ThreadFolder, type ThreadPage } from "@/lib/api";
 
 const POLL_MS = 30_000;
 
@@ -24,28 +32,72 @@ export function useThreads(folder: ThreadFolder, q: string, sentBy: string) {
             api.threads.list({ folder, q: q || undefined, sentBy: sentBy || undefined, before: pageParam }),
         initialPageParam: undefined as string | undefined,
         getNextPageParam: (last) => last.nextBefore ?? undefined,
-        refetchInterval: POLL_MS,
-        refetchOnWindowFocus: true,
     });
 }
 
 export const useThreadCounts = () =>
-    useQuery({ queryKey: mailKeys.counts, queryFn: api.threads.counts, refetchInterval: POLL_MS });
+    useQuery({
+        queryKey: mailKeys.counts,
+        queryFn: api.threads.counts,
+        refetchInterval: POLL_MS,
+        refetchOnWindowFocus: true,
+    });
 
 export const useThread = (id: string | null) =>
-    useQuery({
-        queryKey: mailKeys.thread(id ?? ""),
-        queryFn: () => api.threads.get(id!),
-        enabled: Boolean(id),
-        refetchInterval: POLL_MS,
-    });
+    useQuery({ queryKey: mailKeys.thread(id ?? ""), queryFn: () => api.threads.get(id!), enabled: Boolean(id) });
+
+const isBehind = (q: Query, seen: string | null | undefined, latest: string) =>
+    q.state.data !== undefined && (!seen || seen < latest);
+const keepInFlight = { cancelRefetch: false };
+
+export function useMailChanges() {
+    const qc = useQueryClient();
+    const { data } = useThreadCounts();
+    const version = data?.version ?? null;
+    const previous = useRef(version);
+
+    useEffect(() => {
+        if (!version) return;
+        const changed = previous.current !== null && previous.current !== version;
+        previous.current = version;
+        void qc.invalidateQueries(
+            {
+                queryKey: ["threads", "list"],
+                predicate: (q: Query) =>
+                    isBehind(
+                        q,
+                        (q.state.data as InfiniteData<ThreadPage> | undefined)?.pages[0]?.counts.version,
+                        version,
+                    ),
+            },
+            keepInFlight,
+        );
+        void qc.invalidateQueries(
+            {
+                queryKey: ["threads", "detail"],
+                predicate: (q: Query) => isBehind(q, (q.state.data as ThreadDetail | undefined)?.version, version),
+            },
+            keepInFlight,
+        );
+        if (changed) {
+            void qc.invalidateQueries({ queryKey: ["ai", "suggestions"] }, keepInFlight);
+            void qc.invalidateQueries({ queryKey: ["automation", "thread"] }, keepInFlight);
+        }
+    }, [qc, version]);
+}
 
 export function useUpdateThread() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, ...body }: { id: string; unread?: boolean; closed?: boolean }) =>
             api.threads.update(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: mailKeys.threads }),
+        onSuccess: (thread) => {
+            qc.setQueryData<ThreadDetail>(mailKeys.thread(thread.id), (old) =>
+                old ? { ...old, thread, version: thread.updatedAt } : old,
+            );
+            void qc.invalidateQueries({ queryKey: ["threads", "list"] });
+            void qc.invalidateQueries({ queryKey: mailKeys.counts });
+        },
     });
 }
 
@@ -65,7 +117,7 @@ export function useSyncNow() {
     return useMutation({
         mutationFn: api.mailbox.sync,
         onSettled: () => {
-            void qc.invalidateQueries({ queryKey: mailKeys.threads });
+            void qc.invalidateQueries({ queryKey: mailKeys.counts });
             void qc.invalidateQueries({ queryKey: mailKeys.mailbox });
         },
     });

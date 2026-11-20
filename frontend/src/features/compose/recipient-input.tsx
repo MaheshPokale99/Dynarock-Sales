@@ -133,7 +133,7 @@ export function RecipientInput({
                 <ul
                     id={`${id}-list`}
                     role="listbox"
-                    className="absolute top-full left-12 z-50 mt-1 w-72 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+                    className="absolute top-full right-0 left-12 z-50 mt-1 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md sm:right-auto sm:w-72"
                 >
                     {options.map((o, i) => (
                         <li

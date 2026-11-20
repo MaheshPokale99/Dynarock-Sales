@@ -1,8 +1,9 @@
 "use client";
 
-import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDelete } from "@/components/common/confirm-delete";
 import { EmptyState, ErrorState, PageHeader } from "@/components/common/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -219,26 +220,24 @@ export function KnowledgePage() {
                                                         <>
                                                             <Button
                                                                 variant="ghost"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
                                                                 onClick={() => setEditing({ entry: k })}
                                                                 aria-label={`Edit ${k.name}`}
                                                             >
                                                                 <Pencil aria-hidden />
                                                             </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon-xs"
-                                                                aria-label={`Delete ${k.name}`}
-                                                                onClick={() =>
+                                                            <ConfirmDelete
+                                                                name={k.name}
+                                                                what="fact"
+                                                                description="The AI stops using it in new emails. This can't be undone."
+                                                                onConfirm={() =>
                                                                     remove.mutate(k.id, {
                                                                         onSuccess: () =>
                                                                             toast.success(`${k.name} deleted`),
                                                                         onError: (e) => toast.error(errorMessage(e)),
                                                                     })
                                                                 }
-                                                            >
-                                                                <Trash2 aria-hidden />
-                                                            </Button>
+                                                            />
                                                         </>
                                                     )}
                                                 </div>

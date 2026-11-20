@@ -100,7 +100,7 @@ function MembersTable({
                     <TableRow>
                         <TableHead className="pl-4">Member</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead className="hidden sm:table-cell">Status</TableHead>
                         <TableHead className="hidden md:table-cell">Last sign-in</TableHead>
                         <TableHead className="w-12 pr-4">
                             <span className="sr-only">Actions</span>
@@ -112,8 +112,8 @@ function MembersTable({
                         <TableRow key={member.id} className={member.status === "disabled" ? "opacity-60" : undefined}>
                             <TableCell className="pl-4">
                                 <div className="flex items-center gap-3">
-                                    <UserAvatar name={member.name} className="size-8" />
-                                    <div className="min-w-0">
+                                    <UserAvatar name={member.name} className="size-8 max-sm:hidden" />
+                                    <div className="max-w-[44vw] min-w-0 sm:max-w-none">
                                         <div className="truncate font-medium">
                                             {member.name}
                                             {member.id === meId && (
@@ -123,6 +123,9 @@ function MembersTable({
                                             )}
                                         </div>
                                         <div className="truncate text-xs text-muted-foreground">{member.email}</div>
+                                        <div className="mt-1 sm:hidden">
+                                            <StatusBadge member={member} />
+                                        </div>
                                     </div>
                                 </div>
                             </TableCell>
@@ -131,7 +134,7 @@ function MembersTable({
                                     {ROLE_LABELS[member.role]}
                                 </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                                 <StatusBadge member={member} />
                             </TableCell>
                             <TableCell className="hidden text-sm text-muted-foreground md:table-cell">

@@ -152,7 +152,7 @@ export function SuggestionCard({
             </div>
 
             <Dialog open={rejecting} onOpenChange={setRejecting}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();

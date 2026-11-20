@@ -67,7 +67,7 @@ export function InviteDialog({ onInvited }: { onInvited: (invitation: Invitation
                 <UserPlus data-icon="inline-start" />
                 Invite member
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
                 <form onSubmit={submit} noValidate>
                     <DialogHeader>
                         <DialogTitle>Invite a team member</DialogTitle>

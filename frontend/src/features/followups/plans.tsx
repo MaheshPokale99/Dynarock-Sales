@@ -1,8 +1,9 @@
 "use client";
 
-import { Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Star, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDelete } from "@/components/common/confirm-delete";
 import { EmptyState, ErrorState } from "@/components/common/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -99,7 +100,7 @@ function PlanDialog({ plan, onClose }: { plan: Sequence | null; onClose: () => v
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
-                                                    size="icon-xs"
+                                                    size="icon-sm"
                                                     className="ml-auto"
                                                     aria-label={`Remove follow-up ${i + 1}`}
                                                     onClick={() => setSteps((list) => list.filter((_, j) => j !== i))}
@@ -244,19 +245,17 @@ export function Plans() {
                                             >
                                                 <Pencil aria-hidden />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={`Delete ${p.name}`}
-                                                onClick={() =>
+                                            <ConfirmDelete
+                                                name={p.name}
+                                                what="plan"
+                                                description="Conversations already using it must be stopped first. This can't be undone."
+                                                onConfirm={() =>
                                                     remove.mutate(p.id, {
                                                         onSuccess: () => toast.success("Plan deleted"),
                                                         onError: (e) => toast.error(errorMessage(e)),
                                                     })
                                                 }
-                                            >
-                                                <Trash2 aria-hidden />
-                                            </Button>
+                                            />
                                         </div>
                                     )}
                                 </div>

@@ -38,10 +38,12 @@ export function FollowUpToggle({
     value,
     onChange,
     plans,
+    defaultPlanId,
 }: {
     value: FollowUpChoice;
     onChange: (v: FollowUpChoice) => void;
     plans: Sequence[];
+    defaultPlanId: string | null;
 }) {
     if (plans.length === 0) return null;
     return (
@@ -57,7 +59,7 @@ export function FollowUpToggle({
             </Label>
             {value.enabled && (
                 <Select
-                    value={value.planId ?? ""}
+                    value={value.planId ?? defaultPlanId ?? ""}
                     onValueChange={(v) => onChange({ ...value, planId: v as string })}
                     items={plans.map((p) => ({ value: p.id, label: p.name }))}
                 >

@@ -78,6 +78,7 @@ threadSchema.index({ contactIds: 1, lastMessageAt: -1 });
 threadSchema.index({ organizationId: 1, lastMessageAt: -1 });
 threadSchema.index({ mailboxId: 1, gmailThreadId: 1 }, { unique: true });
 threadSchema.index({ lastMessageAt: -1 });
+threadSchema.index({ updatedAt: -1 });
 threadSchema.index({ state: 1, lastMessageAt: -1 });
 threadSchema.index({ senderIds: 1, lastMessageAt: -1 });
 threadSchema.index({ "participants.email": 1 });

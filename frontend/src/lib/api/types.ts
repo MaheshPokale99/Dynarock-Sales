@@ -72,11 +72,13 @@ export interface Thread {
     organizationId: string | null;
     latestIntent: Intent | null;
     aiSummary: string;
+    updatedAt: string;
 }
 
 export interface ThreadCounts {
     needs_reply: number;
     unread: number;
+    version: string | null;
 }
 
 export interface ThreadPage {
@@ -114,6 +116,7 @@ export interface ThreadDetail {
     thread: Thread;
     messages: Message[];
     contacts: Contact[];
+    version: string | null;
 }
 
 export type ComposeMode = "new" | "reply" | "reply_all" | "forward";
@@ -220,7 +223,6 @@ export interface ScheduledEmail {
     totalSteps: number | null;
     sequenceName: string | null;
     aiGenerated: boolean;
-    // Non-empty when an AI follow-up waits for someone to check and approve it.
     heldReason: string;
     createdBy: string;
     lastEditedBy: string | null;

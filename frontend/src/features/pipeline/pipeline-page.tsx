@@ -1,11 +1,21 @@
 "use client";
 
-import { Building2, Search } from "lucide-react";
+import { Building2, EllipsisVertical, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ErrorState, PageHeader } from "@/components/common/page-header";
 import { StageDot } from "@/components/common/stage-badge";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePipeline, useUpdateContact } from "@/hooks/use-contacts";
@@ -16,7 +26,17 @@ import { listTime } from "@/lib/mail-format";
 import { cn } from "@/lib/utils";
 import { LostReasonDialog, OwnerSelect } from "../contacts/pickers";
 
-function Card({ contact, owner, onDragStart }: { contact: Contact; owner?: string; onDragStart: () => void }) {
+function Card({
+    contact,
+    owner,
+    onDragStart,
+    onMove,
+}: {
+    contact: Contact;
+    owner?: string;
+    onDragStart: () => void;
+    onMove: (stage: ContactStage) => void;
+}) {
     const last = [contact.lastContactedAt, contact.lastRepliedAt].filter(Boolean).sort().at(-1);
     return (
         <li
@@ -28,13 +48,44 @@ function Card({ contact, owner, onDragStart }: { contact: Contact; owner?: strin
             }}
             className="cursor-grab rounded-lg border bg-card p-3 shadow-xs active:cursor-grabbing"
         >
-            <Link
-                href={`/contacts/${contact.id}`}
-                className="block text-sm font-medium hover:underline"
-                draggable={false}
-            >
-                {contact.name || contact.email}
-            </Link>
+            <div className="flex items-start gap-1">
+                <Link
+                    href={`/contacts/${contact.id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                    draggable={false}
+                >
+                    {contact.name || contact.email}
+                </Link>
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        render={
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                className="-mt-0.5 -mr-1 shrink-0"
+                                aria-label={`Move ${contact.name || contact.email} to another stage`}
+                            />
+                        }
+                    >
+                        <EllipsisVertical aria-hidden />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-44">
+                        <DropdownMenuGroup>
+                            <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                            <DropdownMenuRadioGroup
+                                value={contact.stage}
+                                onValueChange={(v) => v !== contact.stage && onMove(v as ContactStage)}
+                            >
+                                {(Object.keys(STAGE_LABELS) as ContactStage[]).map((stage) => (
+                                    <DropdownMenuRadioItem key={stage} value={stage}>
+                                        {STAGE_LABELS[stage]}
+                                    </DropdownMenuRadioItem>
+                                ))}
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
             {contact.organization && (
                 <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                     <Building2 className="size-3 shrink-0" aria-hidden />
@@ -75,23 +126,27 @@ export function PipelinePage() {
             },
         );
 
+    const moveTo = (contact: Contact, stage: ContactStage) => {
+        if (contact.stage === stage) return;
+        if (stage === "lost") setPendingLost(contact);
+        else move(contact, stage);
+    };
+
     const drop = (stage: ContactStage) => {
         setOver(null);
         const contact = dragging;
         setDragging(null);
-        if (!contact || contact.stage === stage) return;
-        if (stage === "lost") setPendingLost(contact);
-        else move(contact, stage);
+        if (contact) moveTo(contact, stage);
     };
 
     return (
         <>
             <PageHeader
                 title="Pipeline"
-                description="Every contact by stage. Drag a card to move it. Contacted and Replied update automatically from email."
+                description="Every contact by stage. Drag a card, or use its menu, to move it. Contacted and Replied update automatically from email."
                 actions={
                     <div className="flex flex-wrap gap-2">
-                        <InputGroup className="w-56">
+                        <InputGroup className="w-full sm:w-56">
                             <InputGroupAddon>
                                 <Search aria-hidden />
                             </InputGroupAddon>
@@ -126,7 +181,7 @@ export function PipelinePage() {
                                     drop(stage);
                                 }}
                                 className={cn(
-                                    "flex w-64 shrink-0 flex-col rounded-xl border bg-muted/40 transition-colors",
+                                    "flex max-h-[calc(100svh-13rem)] min-h-48 w-[min(16rem,78vw)] shrink-0 flex-col rounded-xl border bg-muted/40 transition-colors",
                                     over === stage && dragging && dragging.stage !== stage && "border-primary bg-muted",
                                 )}
                             >
@@ -135,13 +190,14 @@ export function PipelinePage() {
                                     <h2 className="text-sm font-medium">{STAGE_LABELS[stage]}</h2>
                                     <span className="ml-auto text-xs text-muted-foreground tabular-nums">{total}</span>
                                 </header>
-                                <ul className="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
+                                <ul className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
                                     {contacts.map((c) => (
                                         <Card
                                             key={c.id}
                                             contact={c}
                                             owner={c.ownerId ? teamNames.get(c.ownerId) : undefined}
                                             onDragStart={() => setDragging(c)}
+                                            onMove={(stage) => moveTo(c, stage)}
                                         />
                                     ))}
                                     {total > contacts.length && (
@@ -157,7 +213,7 @@ export function PipelinePage() {
                         ))}
                         {pipeline.isPending &&
                             Array.from({ length: 6 }, (_, i) => (
-                                <Skeleton key={i} className="h-96 w-64 shrink-0 rounded-xl" />
+                                <Skeleton key={i} className="h-96 w-[min(16rem,78vw)] shrink-0 rounded-xl" />
                             ))}
                     </div>
                 </div>

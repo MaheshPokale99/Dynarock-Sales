@@ -1,4 +1,4 @@
-import { BrandMark } from "@/components/common/brand";
+import { DynarockLogo } from "@/components/common/brand";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AuthLayout({
@@ -12,9 +12,9 @@ export function AuthLayout({
 }) {
     return (
         <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/40 p-4">
-            <div className="flex items-center gap-2">
-                <BrandMark />
-                <span className="font-heading text-lg font-semibold tracking-tight">Dynarock Sales</span>
+            <div className="flex flex-col items-center gap-2">
+                <DynarockLogo size={22} animated />
+                <span className="text-sm font-medium tracking-wide text-muted-foreground">Sales</span>
             </div>
             <Card className="w-full max-w-sm">
                 <CardHeader>

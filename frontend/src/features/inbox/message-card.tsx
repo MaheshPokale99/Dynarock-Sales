@@ -44,7 +44,7 @@ export function MessageCard({
             <button
                 type="button"
                 onClick={onToggle}
-                className="flex w-full items-start gap-3 p-4 text-left"
+                className="flex w-full items-start gap-3 p-3 text-left sm:p-4"
                 aria-expanded={expanded}
             >
                 <UserAvatar name={fromName} className="size-9" />
@@ -70,7 +70,7 @@ export function MessageCard({
             </button>
 
             {expanded && (
-                <div className="space-y-3 px-4 pb-4">
+                <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
                     {message.cc.length > 0 && (
                         <p className="text-xs text-muted-foreground">cc {message.cc.map((a) => a.email).join(", ")}</p>
                     )}

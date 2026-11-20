@@ -154,7 +154,7 @@ export function createContainer(config: AppConfig, logger: Logger, overrides: Co
             auth: new AuthController(auth, { ...cookie, trustProxy: config.rateLimit.trustProxy }),
             users: new UsersController(users),
             mailbox: new MailboxController(mailbox),
-            mail: new MailController(mail, sync),
+            mail: new MailController(mail, sync, config.gmail.manualSyncCooldownMs),
             drafts: new DraftsController(repositories.drafts),
             files: new FilesController(files),
             contacts: new ContactsController(contacts),

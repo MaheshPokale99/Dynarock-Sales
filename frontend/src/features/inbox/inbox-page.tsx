@@ -181,6 +181,7 @@ export function InboxPage() {
                 ) : (
                     <div className="flex flex-1 items-center justify-center p-6">
                         <EmptyState
+                            bordered={false}
                             icon={MailSearch}
                             title="Pick a conversation"
                             description="Or start a new one. Every email sent from sales@dynarock.in is tracked here."

@@ -11,6 +11,7 @@ export class MailController {
     constructor(
         private readonly service: MailService,
         private readonly sync: MailSyncService,
+        private readonly syncCooldownMs: number,
     ) {}
 
     list = async (c: Context<AppEnv>) => c.json(await this.service.list(parseQuery(c, listQuery)));
@@ -31,5 +32,6 @@ export class MailController {
 
     recipients = async (c: Context<AppEnv>) => c.json(await this.service.recipients(parseQuery(c, recipientsQuery).q));
 
-    syncNow = async (c: Context<AppEnv>) => c.json((await this.sync.syncNow()) ?? { added: 0, skipped: true });
+    syncNow = async (c: Context<AppEnv>) =>
+        c.json((await this.sync.syncNow({ minIntervalMs: this.syncCooldownMs })) ?? { added: 0, skipped: true });
 }

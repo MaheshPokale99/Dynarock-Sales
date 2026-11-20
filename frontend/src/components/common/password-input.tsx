@@ -4,7 +4,6 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 
-// Password field with a show/hide eye button.
 export function PasswordInput(props: Omit<React.ComponentProps<"input">, "type">) {
     const [visible, setVisible] = useState(false);
     return (

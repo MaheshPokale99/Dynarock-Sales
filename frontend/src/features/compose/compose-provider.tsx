@@ -63,7 +63,7 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
                     onClick={() => patchWindow(maximized.key, { maximized: false })}
                 />
             )}
-            <div className="pointer-events-none fixed right-0 bottom-0 z-50 flex items-end gap-3 px-4 max-sm:inset-x-0 max-sm:px-0">
+            <div className="pointer-events-none fixed right-0 bottom-0 z-50 flex items-end gap-3 px-4 max-sm:inset-x-0 max-sm:flex-col max-sm:items-stretch max-sm:gap-0 max-sm:px-0">
                 {windows.map((w) => (
                     <section
                         key={w.key}
@@ -71,7 +71,7 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
                         className={cn(
                             "pointer-events-auto flex flex-col overflow-hidden rounded-t-xl border bg-background shadow-2xl",
                             w.minimized
-                                ? "w-72 max-sm:hidden"
+                                ? "w-72 max-sm:w-full max-sm:rounded-none max-sm:border-x-0"
                                 : w.maximized
                                   ? "fixed inset-x-4 top-[5vh] bottom-[5vh] mx-auto max-w-4xl rounded-xl"
                                   : "h-[min(600px,85vh)] w-[min(560px,calc(100vw-2rem))] max-sm:fixed max-sm:inset-0 max-sm:h-auto max-sm:w-auto max-sm:rounded-none",

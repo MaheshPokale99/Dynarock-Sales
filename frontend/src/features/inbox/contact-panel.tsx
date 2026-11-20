@@ -10,24 +10,26 @@ import { CONTACT_ROLE_LABELS, CONTACT_STATUS_LABELS } from "@/lib/labels";
 import { StageSelect } from "../contacts/pickers";
 
 // Who this conversation is with, and their stage, next to the messages.
-export function ContactPanel({ contacts }: { contacts: Contact[] }) {
+export function ContactPanel({ contacts, inSheet = false }: { contacts: Contact[]; inSheet?: boolean }) {
     const update = useUpdateContact();
     if (contacts.length === 0) return null;
 
     return (
         <aside
             aria-label="Contacts in this conversation"
-            className="hidden w-72 shrink-0 space-y-4 overflow-y-auto border-l p-4 xl:block"
+            className={
+                inSheet ? "space-y-4 px-4 pb-4" : "hidden w-72 shrink-0 space-y-4 overflow-y-auto border-l p-4 xl:block"
+            }
         >
             {contacts.map((c) => (
                 <section key={c.id} className="space-y-2">
                     <div>
                         <Link
                             href={`/contacts/${c.id}`}
-                            className="inline-flex items-center gap-1 text-sm font-medium hover:underline"
+                            className="inline-flex max-w-full items-center gap-1 text-sm font-medium hover:underline"
                         >
-                            {c.name || c.email}
-                            <ExternalLink className="size-3 text-muted-foreground" aria-hidden />
+                            <span className="truncate">{c.name || c.email}</span>
+                            <ExternalLink className="size-3 shrink-0 text-muted-foreground" aria-hidden />
                         </Link>
                         <div className="truncate text-xs text-muted-foreground">{c.email}</div>
                         {(c.designation || c.role !== "other") && (

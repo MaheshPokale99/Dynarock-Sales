@@ -31,7 +31,6 @@ import { ROLE_LABELS } from "@/lib/labels";
 import { htmlToText, textToHtml } from "@/lib/signature";
 import { fullDate, timeAgo } from "@/lib/time";
 
-// The server only sends these codes back; the text lives here.
 const CONNECT_ERRORS: Record<string, string> = {
     access_denied: "Google access wasn't granted. Try again and allow access.",
     google_error: "Google couldn't complete the sign-in. Try again in a moment.",
@@ -71,7 +70,7 @@ function ProfileCard({ user }: { user: User }) {
 
     return (
         <Card>
-            <form onSubmit={save}>
+            <form onSubmit={save} className="contents">
                 <CardHeader>
                     <CardTitle>Profile</CardTitle>
                     <CardDescription>
@@ -134,7 +133,7 @@ function PasswordCard() {
 
     return (
         <Card>
-            <form onSubmit={save}>
+            <form onSubmit={save} className="contents">
                 <CardHeader>
                     <CardTitle>Password</CardTitle>
                     <CardDescription>Changing it signs you out on every other device.</CardDescription>

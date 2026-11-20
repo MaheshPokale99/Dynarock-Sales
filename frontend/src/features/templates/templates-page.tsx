@@ -1,9 +1,10 @@
 "use client";
 
 import type { Editor } from "@tiptap/react";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDelete } from "@/components/common/confirm-delete";
 import { EmptyState, ErrorState, PageHeader } from "@/components/common/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -210,19 +211,16 @@ export function TemplatesPage() {
                                             >
                                                 <Pencil aria-hidden />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={`Delete ${t.name}`}
-                                                onClick={() =>
+                                            <ConfirmDelete
+                                                name={t.name}
+                                                what="template"
+                                                onConfirm={() =>
                                                     remove.mutate(t.id, {
                                                         onSuccess: () => toast.success("Template deleted"),
                                                         onError: (e) => toast.error(errorMessage(e)),
                                                     })
                                                 }
-                                            >
-                                                <Trash2 aria-hidden />
-                                            </Button>
+                                            />
                                         </div>
                                     )}
                                 </div>

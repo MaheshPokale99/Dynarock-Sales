@@ -63,7 +63,7 @@ export function ContactDialog({ organizationId }: { organizationId?: string }) {
                 <UserPlus data-icon="inline-start" />
                 Add contact
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
                 <form onSubmit={submit} noValidate>
                     <DialogHeader>
                         <DialogTitle>Add a contact</DialogTitle>

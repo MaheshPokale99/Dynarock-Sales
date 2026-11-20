@@ -42,9 +42,11 @@ export class MailSyncService {
     }
 
     // Pulls everything new from Gmail since the last sync. Safe to call from several servers.
-    async syncNow(): Promise<{ added: number } | undefined> {
+    async syncNow(options: { minIntervalMs?: number } = {}): Promise<{ added: number; skipped?: true } | undefined> {
         return this.deps.locks.withLock(SYNC_LOCK, this.deps.lockTtlMs, async () => {
             const { doc, api } = await this.deps.mailbox.connected();
+            const sinceLast = doc.lastSyncAt ? Date.now() - doc.lastSyncAt.getTime() : Infinity;
+            if (options.minIntervalMs && sinceLast < options.minIntervalMs) return { added: 0, skipped: true };
             try {
                 const result = await this.pull(doc, api);
                 await this.deps.mailbox.recordSync(doc, { historyId: result.historyId });

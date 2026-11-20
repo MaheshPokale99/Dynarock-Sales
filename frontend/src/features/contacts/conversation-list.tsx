@@ -14,7 +14,7 @@ export function ConversationList({ threads, emptyText }: { threads: Thread[]; em
                 <li key={t.id}>
                     <Link
                         href={`/inbox?f=all&t=${t.id}`}
-                        className="flex items-start gap-3 px-4 py-3 hover:bg-muted/60"
+                        className="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/60 sm:flex-row sm:items-start sm:gap-3"
                     >
                         <div className="min-w-0 flex-1">
                             <div className="flex items-baseline gap-2">
@@ -27,7 +27,10 @@ export function ConversationList({ threads, emptyText }: { threads: Thread[]; em
                                 {t.participants.map(displayName).join(", ")} · {t.snippet}
                             </p>
                         </div>
-                        <Badge variant={t.state === "needs_reply" ? "default" : "outline"} className="shrink-0">
+                        <Badge
+                            variant={t.state === "needs_reply" ? "default" : "outline"}
+                            className="shrink-0 self-start"
+                        >
                             {STATE_LABELS[t.state]}
                         </Badge>
                     </Link>

@@ -46,7 +46,7 @@ function NewOrganizationDialog() {
                 <Plus data-icon="inline-start" />
                 Add college
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();

@@ -113,7 +113,7 @@ export function AiAssist({
                     {busy === "write" ? <Spinner data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
                     AI Write
                 </PopoverTrigger>
-                <PopoverContent className="w-96" side="top" align="start">
+                <PopoverContent className="w-[min(24rem,calc(100vw-2rem))]" side="top" align="start">
                     <form
                         className="space-y-3"
                         onSubmit={(e) => {

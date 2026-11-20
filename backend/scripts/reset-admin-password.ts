@@ -1,4 +1,3 @@
-// Sets the BOOTSTRAP_ADMIN_EMAIL user's password to BOOTSTRAP_ADMIN_PASSWORD from .env, unlocks them and signs them out everywhere.
 import { loadConfig } from "../src/config/env.js";
 import { Database } from "../src/database/database.js";
 import { hashPassword } from "../src/modules/auth/password.js";

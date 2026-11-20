@@ -14,10 +14,10 @@ export const aiKeys = {
 export const useAiStatus = () => useQuery({ queryKey: aiKeys.status, queryFn: api.ai.status, staleTime: 5 * 60_000 });
 
 export const useSuggestions = (p: { status?: SuggestionStatus; threadId?: string }) =>
-    useQuery({ queryKey: aiKeys.list(p), queryFn: () => api.ai.suggestions(p), refetchInterval: 30_000 });
+    useQuery({ queryKey: aiKeys.list(p), queryFn: () => api.ai.suggestions(p), refetchInterval: 60_000 });
 
 export const useSuggestionCounts = () =>
-    useQuery({ queryKey: aiKeys.counts, queryFn: api.ai.counts, refetchInterval: 30_000 });
+    useQuery({ queryKey: aiKeys.counts, queryFn: api.ai.counts, refetchInterval: 60_000 });
 
 // Suggestions change threads and contacts too, so refresh them together.
 function useRefresh() {

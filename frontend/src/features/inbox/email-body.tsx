@@ -10,17 +10,19 @@ const frameDoc = (body: string, hideQuotes: boolean) => `<!doctype html><html><h
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: cid:; style-src 'unsafe-inline'; font-src https: data:">
 <base target="_blank">
 <style>
-html,body{margin:0;padding:0;background:#fff;color:#1f1f1f;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow-wrap:anywhere}
-body{padding:2px}
-img{max-width:100%;height:auto}
-table{max-width:100%}
+html,body{margin:0;padding:0;height:auto!important;background:#fff;color:#1f1f1f;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow-wrap:anywhere}
+html{overflow-x:auto}
+#mail-root{display:flow-root;padding:2px}
+#mail-root *{max-width:100%!important;min-width:0!important;min-height:0!important;box-sizing:border-box}
+#mail-root [style*="height"]:not(img){height:auto!important}
+img{height:auto!important}
+td,th{word-break:break-word}
 a{color:#0b57d0}
 blockquote{margin:0 0 0 .8ex;border-left:1px solid #ccc;padding-left:1ex}
 pre{white-space:pre-wrap}
 ${hideQuotes ? `${QUOTE_SELECTORS}{display:none!important}` : ""}
-</style></head><body>${body}</body></html>`;
+</style></head><body><div id="mail-root">${body}</div></body></html>`;
 
-// Renders untrusted email HTML: sanitised, in a sandboxed iframe that can't run scripts.
 export function EmailBody({ html }: { html: string }) {
     const ref = useRef<HTMLIFrameElement>(null);
     const [height, setHeight] = useState(60);
@@ -41,12 +43,13 @@ export function EmailBody({ html }: { html: string }) {
         if (!frame) return;
         let observer: ResizeObserver | undefined;
         const measure = () => {
-            const body = frame.contentDocument?.body;
-            if (!body) return;
-            setHeight(Math.ceil(body.scrollHeight) + 4);
+            const root = frame.contentDocument?.getElementById("mail-root");
+            if (!root) return;
+            const fit = () => setHeight(Math.ceil(root.getBoundingClientRect().height) + 2);
+            fit();
             observer?.disconnect();
-            observer = new ResizeObserver(() => setHeight(Math.ceil(body.scrollHeight) + 4));
-            observer.observe(body);
+            observer = new ResizeObserver(fit);
+            observer.observe(root);
         };
         frame.addEventListener("load", measure);
         return () => {

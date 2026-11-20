@@ -41,7 +41,6 @@ export function ScheduledItem({ item, showThread = true }: { item: ScheduledEmai
     const approve = useApproveScheduled();
     const { data: me } = useMe();
     const pending = item.status === "scheduled";
-    // Only the person who scheduled it, or an admin, can change it.
     const canManage = me?.role === "admin" || me?.id === item.createdBy;
     const held = pending && Boolean(item.heldReason);
     const who = item.thread?.participants.map(displayName).join(", ") || item.to.join(", ");

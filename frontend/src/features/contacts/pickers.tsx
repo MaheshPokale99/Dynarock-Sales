@@ -79,7 +79,7 @@ export function LostReasonDialog({
     const [reason, setReason] = useState("");
     return (
         <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
