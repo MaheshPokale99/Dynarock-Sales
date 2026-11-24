@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates the cron secret and the Cloud Scheduler job that runs Gmail sync and follow-ups every minute. Safe to re-run.
+# Creates the cron secret and a per-minute worker tick. Gmail sync is rate-limited separately. Safe to re-run.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 JOB=dynarock-sales-tick
@@ -16,7 +16,7 @@ gcloud secrets add-iam-policy-binding "$SECRET" \
     --member "serviceAccount:$API_SA" --role roles/secretmanager.secretAccessor >/dev/null
 value="$(gcloud secrets versions access latest --secret "$SECRET" | tr -d '\r\n')"
 
-log "Scheduler job $JOB: POST https://$API_DOMAIN/internal/tick every minute"
+log "Scheduler job $JOB: POST https://$API_DOMAIN/internal/tick every minute (Gmail sync interval is configurable)"
 args=(
     --location "$REGION"
     --schedule "* * * * *"

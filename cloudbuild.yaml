@@ -54,7 +54,7 @@ steps:
       - '--cpu'
       - '1'
       # Request-based billing: CPU is billed only while a request runs, and nothing when idle.
-      # Gmail sync and follow-ups run on POST /internal/tick, called every minute by Cloud Scheduler (WORKER_MODE=cron).
+      # Cloud Scheduler calls /internal/tick every minute; Gmail sync is rate-limited by GMAIL_SYNC_INTERVAL_SECONDS.
       - '--min-instances'
       - '0'
       - '--max-instances'

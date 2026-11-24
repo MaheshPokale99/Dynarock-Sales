@@ -72,7 +72,7 @@ flowchart LR
 - **Permissions requested:** `gmail.modify` (read, send, mark as read) plus `openid email`.
 - **Token storage:** the refresh token is stored **encrypted (AES-256-GCM)** using the `ENCRYPTION_KEY` setting.
 - **Sending:** `users.messages.send` with a full email message. Replies pass the conversation's `threadId` plus `In-Reply-To` and `References` headers, so the conversation stays together in both Gmail and the app.
-- **Receiving:** we save Gmail's `historyId` at connect. Every 60 seconds the app asks Gmail what changed since then (`users.history.list`) and fetches each new message. If Gmail says that position is too old, we fall back to `messages.list` for the last 7 days. Gmail's instant push notifications (Pub/Sub) can replace the 60-second check once the app is deployed on a public URL.
+- **Receiving:** we save Gmail's `historyId` at connect. Every 60 seconds the app asks Gmail what changed since then (`users.history.list`) and fetches each new message. If Gmail says that position is too old, we fall back to `messages.list` for the last 7 days. Gmail's instant push notifications (Pub/Sub) can replace polling once the app is deployed on a public URL.
 - **Emails sent straight from Gmail** (outside the app) are synced too, as outbound messages with `origin: gmail_external`.
 - **Limits:** Workspace allows about 2,000 emails a day per mailbox. The app adds its own daily cap (default 300) and a send window (Mon–Sat, 9:00–18:00 IST).
 - **Deliverability:** the admin should check that SPF, DKIM and DMARC are set up for `dynarock.in` in Workspace. Every automated email gets an unsubscribe link and a `List-Unsubscribe` header.

@@ -8,3 +8,4 @@ backend/src/generated/
 *.tsbuildinfo
 deploy/gcp/secrets.env
 deploy/gcp/.build/
+frontend/release/

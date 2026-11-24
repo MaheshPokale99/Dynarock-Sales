@@ -167,6 +167,7 @@ export class MailSyncService {
                 ? {
                       state: last.direction === "inbound" ? "needs_reply" : "awaiting_reply",
                       unread: last.direction === "inbound",
+                      ...(last.direction === "inbound" ? { latestIntent: null, aiSummary: "" } : {}),
                   }
                 : {}),
         });

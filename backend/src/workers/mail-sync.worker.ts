@@ -16,7 +16,7 @@ export function startMailSyncWorker(deps: {
         running = true;
         try {
             if ((await deps.mailbox.status()).status !== "disconnected") {
-                const result = await deps.sync.syncNow();
+                const result = await deps.sync.syncNow({ minIntervalMs: deps.intervalMs });
                 if (result?.added) deps.logger.info({ added: result.added }, "New mail synced");
             }
         } catch (error) {

@@ -14,7 +14,7 @@ import {
     Strikethrough,
     Underline,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,12 +25,40 @@ import { cn } from "@/lib/utils";
 function LinkButton({ editor }: { editor: Editor }) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState("");
+    const selection = useRef<{ from: number; to: number } | null>(null);
+
+    const rememberSelection = () => {
+        const { from, to } = editor.state.selection;
+        selection.current = { from, to };
+    };
 
     const apply = () => {
         const href = url.trim();
-        const chain = editor.chain().focus().extendMarkRange("link");
-        if (!href) chain.unsetLink().run();
-        else chain.setLink({ href: /^(https?:|mailto:)/i.test(href) ? href : `https://${href}` }).run();
+        const saved = selection.current;
+        if (saved) {
+            const chain = editor.chain().focus();
+            if (!href) {
+                chain.setTextSelection(saved).extendMarkRange("link").unsetLink().run();
+            } else {
+                const position = saved.to;
+                const target = /^(https?:|mailto:)/i.test(href) ? href : `https://${href}`;
+                const docSize = editor.state.doc.content.size;
+                const before = position > 0 ? editor.state.doc.textBetween(position - 1, position, " ", " ") : "";
+                const after = position < docSize ? editor.state.doc.textBetween(position, position + 1, " ", " ") : "";
+                const addLeadingSpace = Boolean(before && !/\s/.test(before));
+                const addTrailingSpace = !after || (!/\s/.test(after) && !/^[.,!?;:)}\]]/.test(after));
+                const content = [
+                    ...(addLeadingSpace ? [{ type: "text" as const, text: " " }] : []),
+                    { type: "text" as const, text: href, marks: [{ type: "link" as const, attrs: { href: target } }] },
+                    ...(addTrailingSpace ? [{ type: "text" as const, text: " " }] : []),
+                ];
+
+                // Insert the URL as its own linked text after the saved selection/caret.
+                // This keeps existing selected text unchanged.
+                chain.setTextSelection(position).insertContent(content).run();
+            }
+        }
+        selection.current = null;
         setOpen(false);
     };
 
@@ -39,10 +67,23 @@ function LinkButton({ editor }: { editor: Editor }) {
             open={open}
             onOpenChange={(next) => {
                 setOpen(next);
-                if (next) setUrl((editor.getAttributes("link").href as string | undefined) ?? "");
+                if (next) {
+                    rememberSelection();
+                    setUrl("");
+                }
             }}
         >
-            <PopoverTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Insert link" />}>
+            <PopoverTrigger
+                render={
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Insert link"
+                        onPointerDown={rememberSelection}
+                    />
+                }
+            >
                 <Link2 aria-hidden />
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">

@@ -12,6 +12,7 @@ export interface WorkerRun {
 // One pass of the background work, finished before returning (WORKER_MODE=cron).
 export async function runWorkersOnce(deps: {
     gmailEnabled: boolean;
+    syncIntervalMs: number;
     sync: MailSyncService;
     mailbox: MailboxService;
     automation: AutomationService;
@@ -23,7 +24,7 @@ export async function runWorkersOnce(deps: {
 
     try {
         if ((await deps.mailbox.status()).status !== "disconnected") {
-            run.synced = (await deps.sync.syncNow())?.added ?? 0;
+            run.synced = (await deps.sync.syncNow({ minIntervalMs: deps.syncIntervalMs }))?.added ?? 0;
         }
     } catch (error) {
         deps.logger.warn({ err: error }, "Mail sync run failed");

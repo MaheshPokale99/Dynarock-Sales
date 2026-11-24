@@ -10,6 +10,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { navItemFor } from "@/config/navigation";
 import { useMe } from "@/hooks/use-auth";
 import { useMailChanges } from "@/hooks/use-mail";
+import { useMailNotifications } from "@/hooks/use-mail-notifications";
 import { errorMessage, type User } from "@/lib/api";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function SignedInShell({ me, children }: { me: User; children: React.ReactNode }) {
     const pathname = usePathname();
     useMailChanges();
+    useMailNotifications(me.id);
     const section = navItemFor(pathname);
     // The inbox fills the screen edge to edge.
     const fullBleed = pathname.startsWith("/inbox");

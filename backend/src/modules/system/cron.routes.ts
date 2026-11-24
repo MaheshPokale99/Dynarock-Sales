@@ -14,6 +14,7 @@ const sameSecret = (given: string | undefined, expected: string) => {
 };
 
 // Called by Cloud Scheduler every minute when WORKER_MODE=cron, because Cloud Run only gives CPU during requests.
+// Mail sync is rate-limited to the configured interval; follow-ups still run every minute.
 export function createCronRoutes({ config, services, logger }: Container) {
     return new Hono<AppEnv>().post("/internal/tick", async (c) => {
         const secret = config.workers.cronSecret;
@@ -22,6 +23,7 @@ export function createCronRoutes({ config, services, logger }: Container) {
 
         const run = await runWorkersOnce({
             gmailEnabled: config.gmail.enabled,
+            syncIntervalMs: config.gmail.syncIntervalMs,
             sync: services.sync,
             mailbox: services.mailbox,
             automation: services.automation,

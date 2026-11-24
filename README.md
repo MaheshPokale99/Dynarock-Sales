@@ -18,6 +18,7 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | 5 | Automatic follow-ups (plans, AI-written steps, send window, daily limit, pause), schedule send, unsubscribe | Done |
 | 6 | Analytics dashboard: KPIs vs previous period, activity over time, pipeline, follow-up results, reply labels, AI drafts, team table | Done |
 | 7 | Templates with fill-in fields, mobile and clean-up polish, production build check, deployment guide | Done |
+| 8 | Mail sync, sound and desktop mail alerts, Electron desktop launcher | Done |
 
 ## Stack
 
@@ -28,6 +29,7 @@ The full design (MongoDB collections, API, screens, build plan) is in [docs/dyna
 | Auth | argon2id passwords, httpOnly session cookie stored as a hash in MongoDB, invitation links |
 | AI | Gemini (`@google/genai`) |
 | Frontend | Next.js 16, React 19, Tailwind v4, **shadcn/ui** (Base UI), TanStack Query |
+| Desktop | Electron 45 wrapper for the Next.js app |
 
 ## Run it locally
 
@@ -56,6 +58,18 @@ npm run dev                      # http://localhost:3000
 On first start the API creates the first admin from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`. Sign in with it, change the password in **Settings**, then add the sales team from **Team → Invite member**. Each invite gives a one-time link (valid 7 days) for that person to choose their password.
 
 Everything in Docker: `MONGO_ROOT_PASSWORD=... BOOTSTRAP_ADMIN_PASSWORD=... docker compose --profile app up --build`. Compose refuses to start without both; MongoDB requires a login and listens only on 127.0.0.1, and the admin password must be at least 16 characters.
+
+### Run the desktop app
+
+Install dependencies in `backend` and `frontend`, then copy `backend/.env.example` to `backend/.env` and set the bootstrap admin email and password. From the project root, run:
+
+```bash
+npm run desktop
+```
+
+This starts local MongoDB if it is needed, the API, Next.js, and the Electron window. It serves the optimized Next.js build when one exists; otherwise it runs the development server. On Windows PowerShell, open the hosted app in Electron with `$env:DYNAROCK_APP_URL = "https://sales.dynarock.in"` before running `npm run desktop`; this skips the local services. **Settings → Mail notifications → Enable alerts** enables desktop alerts. Closing the Electron window keeps the app running in the system tray, where you can reopen it or choose **Quit**. While it is running, Electron shows native notifications with the operating system's notification sound, and mail is checked every 30 seconds; Gmail itself is fetched every 60 seconds. OS notification settings control whether sounds play. Quitting the app or shutting down the laptop stops local alerts. Bounce alerts use the AI classification and therefore require `GEMINI_API_KEY`.
+
+To build the Windows installer, run `npm run desktop:package` from `frontend`. It creates a per-user installer under `frontend/release` that opens the hosted site at `https://sales.dynarock.in`; the computer needs internet access, and users sign in with their team account.
 
 ### Try the Inbox without Google setup
 

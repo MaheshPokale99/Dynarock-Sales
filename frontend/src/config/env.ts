@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://localhost:8787";
+const DEFAULT_API_URL = "http://localhost:5000";
 
 function resolveApiUrl(): string {
     const raw = process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL;

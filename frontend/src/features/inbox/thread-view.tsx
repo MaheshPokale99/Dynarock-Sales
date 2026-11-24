@@ -1,6 +1,17 @@
 "use client";
 
-import { Archive, ArchiveRestore, ArrowLeft, Forward, MailOpen, Reply, ReplyAll, Sparkles, Users } from "lucide-react";
+import {
+    Archive,
+    ArchiveRestore,
+    ArrowLeft,
+    Forward,
+    MailOpen,
+    Reply,
+    ReplyAll,
+    Sparkles,
+    Users,
+    X,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -130,6 +141,17 @@ export function ThreadView({
                     )}
                 </div>
                 <div className="flex shrink-0 items-center">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="hidden lg:inline-flex"
+                        nativeButton={false}
+                        render={<Link href={backHref} />}
+                        aria-label="Close opened email"
+                        title="Close email panel"
+                    >
+                        <X aria-hidden />
+                    </Button>
                     {(data?.contacts.length ?? 0) > 0 && (
                         <Sheet>
                             <SheetTrigger

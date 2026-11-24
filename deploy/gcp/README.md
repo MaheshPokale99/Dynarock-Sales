@@ -23,7 +23,7 @@ api.sales.dynarock.in ─> HTTPS load balancer ─> Cloud Run ─> MongoDB Atlas
 Cloud Scheduler (every minute) ─> POST /internal/tick ─> Gmail sync + due follow-ups + AI labels
 ```
 
-**Request-based billing:** the container uses `--cpu-throttling` and `--min-instances 0`, so you pay only while a request runs and nothing when idle. Timers can't run between requests under that model, so `WORKER_MODE=cron` turns them off, and Cloud Scheduler calls `/internal/tick` every minute with the `X-Cron-Secret` header. Each call syncs Gmail, sends due follow-ups and waits for the AI work before it returns. Locally, `WORKER_MODE=timers` (the default) keeps the in-process timers.
+**Request-based billing:** the container uses `--cpu-throttling` and `--min-instances 0`, so you pay only while a request runs and nothing when idle. Timers can't run between requests under that model, so `WORKER_MODE=cron` turns them off, and Cloud Scheduler calls `/internal/tick` every minute with the `X-Cron-Secret` header. The tick checks Gmail at the configured sync interval while continuing to process due follow-ups every minute, and waits for the AI work before it returns. Locally, `WORKER_MODE=timers` (the default) keeps the in-process timers.
 
 Run the scripts from the repo root in **Git Bash**, signed in with `gcloud auth login`.
 

@@ -23,7 +23,12 @@ export const mailKeys = {
 };
 
 export const useMailbox = () =>
-    useQuery({ queryKey: mailKeys.mailbox, queryFn: api.mailbox.status, staleTime: 30_000 });
+    useQuery({
+        queryKey: mailKeys.mailbox,
+        queryFn: api.mailbox.status,
+        staleTime: 30_000,
+        refetchOnWindowFocus: true,
+    });
 
 export function useThreads(folder: ThreadFolder, q: string, sentBy: string) {
     return useInfiniteQuery({

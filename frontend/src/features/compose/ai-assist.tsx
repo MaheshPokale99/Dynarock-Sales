@@ -126,6 +126,7 @@ export function AiAssist({
                             <Textarea
                                 id="ai-instruction"
                                 rows={3}
+                                className="field-sizing-fixed h-24 max-h-24 min-h-24 resize-none overflow-y-auto"
                                 value={instruction}
                                 onChange={(e) => setInstruction(e.target.value)}
                                 onKeyDown={(e) => {

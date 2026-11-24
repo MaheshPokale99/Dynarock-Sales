@@ -1,9 +1,9 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Mail, RefreshCw } from "lucide-react";
+import { Bell, BellOff, Mail, RefreshCw, Volume2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { PasswordInput } from "@/components/common/password-input";
 import { PageHeader } from "@/components/common/page-header";
@@ -26,6 +26,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useChangePassword, useMe, useUpdateProfile } from "@/hooks/use-auth";
 import { mailKeys, useMailbox, useSyncNow } from "@/hooks/use-mail";
+import {
+    disableMailNotifications,
+    enableMailNotifications,
+    mailNotificationsEnabled,
+    playMailSound,
+    subscribeMailNotifications,
+} from "@/lib/mail-notifications";
 import { api, ApiError, errorMessage, type User } from "@/lib/api";
 import { ROLE_LABELS } from "@/lib/labels";
 import { htmlToText, textToHtml } from "@/lib/signature";
@@ -48,6 +55,7 @@ export function SettingsPage() {
             <div className="grid max-w-3xl gap-6">
                 <ProfileCard user={me} />
                 <PasswordCard />
+                <MailNotificationsCard />
                 {me.role === "admin" && <MailboxCard />}
             </div>
         </>
@@ -170,6 +178,48 @@ function PasswordCard() {
                     </Button>
                 </CardFooter>
             </form>
+        </Card>
+    );
+}
+
+function MailNotificationsCard() {
+    const enabled = useSyncExternalStore(subscribeMailNotifications, mailNotificationsEnabled, () => false);
+
+    const toggle = async () => {
+        if (enabled) {
+            disableMailNotifications();
+            toast.success("Mail alerts turned off");
+            return;
+        }
+        const result = await enableMailNotifications();
+        toast.success(result === "denied" ? "Sound enabled; desktop notifications are blocked" : "Mail alerts enabled");
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Mail notifications</CardTitle>
+                <CardDescription>
+                    Play a sound and show a desktop alert when new mail or a bounce arrives.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+                {enabled
+                    ? "Desktop alert sounds follow your operating system settings. In the Electron app, closing the window keeps mail alerts active in the system tray; choose Quit there to stop them."
+                    : "Enable alerts here, then allow browser notifications when asked."}
+            </CardContent>
+            <CardFooter className="justify-end gap-2 pt-6">
+                {enabled && (
+                    <Button variant="outline" onClick={playMailSound}>
+                        <Volume2 data-icon="inline-start" />
+                        Test sound
+                    </Button>
+                )}
+                <Button variant={enabled ? "secondary" : "default"} onClick={() => void toggle()}>
+                    {enabled ? <BellOff data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
+                    {enabled ? "Turn off alerts" : "Enable alerts"}
+                </Button>
+            </CardFooter>
         </Card>
     );
 }

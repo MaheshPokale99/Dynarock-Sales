@@ -1,10 +1,9 @@
 "use client";
 
-import { MailSearch, PenSquare, RefreshCw, Search } from "lucide-react";
+import { PenSquare, RefreshCw, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { EmptyState } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,8 +77,8 @@ export function InboxPage() {
             <section
                 aria-label="Conversation list"
                 className={cn(
-                    "flex w-full min-w-0 flex-col border-r lg:w-100 lg:shrink-0",
-                    threadId && "max-lg:hidden",
+                    "flex w-full min-w-0 flex-col border-r",
+                    threadId ? "max-lg:hidden lg:w-100 lg:shrink-0" : "lg:w-full",
                 )}
             >
                 <div className="space-y-3 border-b p-3">
@@ -172,28 +171,10 @@ export function InboxPage() {
                 </div>
             </section>
 
-            <section
-                aria-label="Conversation"
-                className={cn("min-w-0 flex-1 flex-col", threadId ? "flex" : "hidden lg:flex")}
-            >
+            <section aria-label="Conversation" className={cn("min-w-0 flex-1 flex-col", threadId ? "flex" : "hidden")}>
                 {threadId ? (
                     <ThreadView key={threadId} threadId={threadId} backHref={href({ t: null })} teamNames={teamNames} />
-                ) : (
-                    <div className="flex flex-1 items-center justify-center p-6">
-                        <EmptyState
-                            bordered={false}
-                            icon={MailSearch}
-                            title="Pick a conversation"
-                            description="Or start a new one. Every email sent from sales@dynarock.in is tracked here."
-                            action={
-                                <Button onClick={() => compose.open()}>
-                                    <PenSquare data-icon="inline-start" />
-                                    Compose
-                                </Button>
-                            }
-                        />
-                    </div>
-                )}
+                ) : null}
             </section>
         </div>
     );

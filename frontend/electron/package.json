@@ -1,0 +1,35 @@
+{
+    "name": "dynarock-sales-desktop",
+    "version": "1.0.1",
+    "private": true,
+    "description": "Dynarock Sales desktop app",
+    "author": "Dynarock Sales",
+    "main": "main.cjs",
+    "build": {
+        "appId": "in.dynarock.sales",
+        "productName": "Dynarock Sales",
+        "electronVersion": "45.4.1",
+        "asar": true,
+        "directories": {
+            "output": "../release"
+        },
+        "files": [
+            "main.cjs",
+            "preload.cjs",
+            "assets/**/*",
+            "package.json"
+        ],
+        "artifactName": "Dynarock-Sales-Setup-${version}-${arch}.${ext}",
+        "win": {
+            "target": ["nsis"],
+            "icon": "assets/app.ico"
+        },
+        "nsis": {
+            "oneClick": false,
+            "perMachine": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true
+        }
+    }
+}
